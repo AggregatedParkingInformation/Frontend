@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AuthDialog } from "./AuthDialog";
 import { AdminPanel } from "./AdminPanel";
+import { springLogout } from "@/lib/api";
 
 export type AuthUser = {
     username: string;
@@ -92,7 +93,10 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
                                 <Button
                                     variant="outline"
                                     className="h-11"
-                                    onClick={() => setUser(null)}>
+                                    onClick={async () => {
+                                        await springLogout();
+                                        setUser(null);
+                                    }}>
                                     <LogOut /> Abmelden
                                 </Button>
                             </>

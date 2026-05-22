@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { api, springLogin } from "@/lib/api";
 import { useRegister } from "@/lib/hooks";
 import { toast } from "sonner";
 
@@ -30,15 +30,20 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
     const handleLogin = async () => {
         setLoginBusy(true);
         try {
-            // Backend hat noch keinen Login-Endpoint — Fallback: user-Liste prüfen.
-            const users = await api.getUsers().catch(() => []);
-            const match = users.find((u) => u.username.toLowerCase() === loginUser.toLowerCase());
-            if (!match && loginUser.toLowerCase() !== "admin") {
-                toast.error("Nutzer nicht gefunden");
-                return;
+            await springLogin(loginUser, loginPw);
+            // Optional: Admin-Rolle aus User-Liste ableiten, sonst false.
+            let isAdmin = false;
+            try {
+                const users = await api.getUsers();
+                const me = users.find((u) => u.username.toLowerCase() === loginUser.toLowerCase());
+                isAdmin = !!me && loginUser.toLowerCase() === "admin";
+            } catch {
+                isAdmin = loginUser.toLowerCase() === "admin";
             }
-            onAuth(loginUser, loginUser.toLowerCase() === "admin");
+            onAuth(loginUser, isAdmin);
             onOpenChange(false);
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Login fehlgeschlagen");
         } finally {
             setLoginBusy(false);
         }
