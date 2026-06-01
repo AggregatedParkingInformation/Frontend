@@ -271,7 +271,7 @@ export default function App() {
                     size="icon-lg"
                     variant="secondary"
                     onClick={handleLocateMe}
-                    className="shadow-lg bg-background h-12 w-12 rounded-2xl"
+                    className="ml-auto shadow-lg bg-background h-12 w-12 rounded-2xl"
                     aria-label="Mein Standort">
                     <Locate />
                 </Button>
