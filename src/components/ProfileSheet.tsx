@@ -109,8 +109,9 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
                                     onClick={async () => {
                                         await springLogout();
                                         setUser(null);
+                                        // Immediately clear the cached currentUser so UI updates reflect logout
+                                        qc.setQueryData(["currentUser"], null);
                                         qc.invalidateQueries({ queryKey: ["users"] });
-                                        qc.invalidateQueries({ queryKey: ["currentUser"] });
                                     }}>
                                     <LogOut /> Abmelden
                                 </Button>

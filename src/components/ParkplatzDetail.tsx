@@ -97,8 +97,9 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
             if (deleteTarget.type === "review") await adminDeleteReview.mutateAsync(deleteTarget.id);
             else await adminDeleteComment.mutateAsync(deleteTarget.id);
         } else {
-            if (deleteTarget.type === "review") await deleteReview.mutateAsync(deleteTarget.id);
-            else await deleteComment.mutateAsync(deleteTarget.id);
+            // Regular users delete their own review/comment by space osmId
+            if (deleteTarget.type === "review") await deleteReview.mutateAsync(parkplatz.osmId);
+            else await deleteComment.mutateAsync(parkplatz.osmId);
         }
         setDeleteModalOpen(false);
         setDeleteTarget(null);
@@ -283,7 +284,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                         <span className="text-sm font-semibold text-muted-foreground">
                                             {r.user?.username}
                                         </span>
-                                        {isAdmin && (
+                                        {(isAdmin || r.user?.id === currentUser.data?.id) && (
                                             <button
                                                 className="text-destructive hover:text-destructive/80"
                                                 onClick={() => handleDeleteClick("review", r.id)}
@@ -314,7 +315,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                             className="text-muted-foreground"
                                         />
                                         <span className="text-sm font-semibold">{k.user?.username}</span>
-                                        {isAdmin && (
+                                        {(isAdmin || k.user?.id === currentUser.data?.id) && (
                                             <button
                                                 className="text-destructive hover:text-destructive/80"
                                                 onClick={() => handleDeleteClick("comment", k.id)}
