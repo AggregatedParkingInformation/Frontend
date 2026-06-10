@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { AuthDialog } from "./AuthDialog";
 import { AdminPanel } from "./AdminPanel";
 import { springLogout } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 import type { UserDto } from "@/lib/types";
 
 export type AuthUser = UserDto | null;
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpen, onAuthOpenChange }: Props) {
+    const qc = useQueryClient();
     const [authOpenInner, setAuthOpenInner] = useState(false);
     const authOpen = initialAuthOpen ?? authOpenInner;
     const setAuthOpen = (b: boolean) => {
@@ -107,6 +109,8 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
                                     onClick={async () => {
                                         await springLogout();
                                         setUser(null);
+                                        qc.invalidateQueries({ queryKey: ["users"] });
+                                        qc.invalidateQueries({ queryKey: ["currentUser"] });
                                     }}>
                                     <LogOut /> Abmelden
                                 </Button>
@@ -141,7 +145,11 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
             <AuthDialog
                 open={authOpen}
                 onOpenChange={setAuthOpen}
-                onAuth={(profile) => setUser(profile)}
+                onAuth={(profile) => {
+                    setUser(profile);
+                    qc.invalidateQueries({ queryKey: ["users"] });
+                    qc.invalidateQueries({ queryKey: ["currentUser"] });
+                }}
             />
             <AdminPanel
                 open={adminOpen}
