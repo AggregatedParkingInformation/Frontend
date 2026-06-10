@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Locate, Menu, User } from "lucide-react";
+import { AdminPanel } from "@/components/AdminPanel";
 import { Map as MapView, type MapHandleApi } from "@/components/Map";
 import { FilterPanel, defaultFilter, type FilterState } from "@/components/FilterPanel";
 import { ParkplatzDetail } from "@/components/ParkplatzDetail";
@@ -8,7 +9,7 @@ import { ProfileSheet, type AuthUser } from "@/components/ProfileSheet";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Toaster } from "sonner";
-import { useAverageStars, useOsmParkplaetze, useParkingSpaces } from "@/lib/hooks";
+import { useAverageStars, useOsmParkplaetze, useParkingSpaces, useCurrentUser } from "@/lib/hooks";
 import { distanzKm, type LatLng, type Parkplatz } from "@/lib/types";
 import type { Bbox } from "@/lib/osm";
 
@@ -47,7 +48,14 @@ export default function App() {
     const [authOpen, setAuthOpen] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [user, setUser] = useState<AuthUser>(null);
+    const [adminPanelOpen, setAdminPanelOpen] = useState(false);
     const isMobile = useIsMobile();
+
+    // fetch current user on init
+    const { data: currentUser } = useCurrentUser();
+    if (currentUser && !user) {
+        setUser(currentUser);
+    }
 
     const setBboxDebounced = useMemo(
         () =>
@@ -300,6 +308,10 @@ export default function App() {
                 referenzLabel={userPos ? "deinem Standort" : "der Kartenmitte"}
                 selectedId={selected?.osmId ?? null}
                 onSelect={handleSelect}
+            />
+            <AdminPanel
+                open={adminPanelOpen}
+                onOpenChange={setAdminPanelOpen}
             />
 
             <Toaster
