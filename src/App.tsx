@@ -52,10 +52,14 @@ export default function App() {
     const isMobile = useIsMobile();
 
     // fetch current user on init
-    const { data: currentUser } = useCurrentUser();
-    if (currentUser && !user) {
-        setUser(currentUser);
-    }
+    const { data: currentUserData, isFetched } = useCurrentUser();
+    useEffect(() => {
+        // Avoid calling setState synchronously inside an effect which can
+        // trigger cascading renders. Schedule the update after paint.
+        if (!isFetched) return;
+        const id = setTimeout(() => setUser(currentUserData ?? null), 0);
+        return () => clearTimeout(id);
+    }, [currentUserData, isFetched]);
 
     const setBboxDebounced = useMemo(
         () =>
