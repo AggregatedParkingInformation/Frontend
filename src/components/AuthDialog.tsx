@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { api, springLogin } from "@/lib/api";
 import { useRegister } from "@/lib/hooks";
 import { toast } from "sonner";
+import type { UserDto } from "@/lib/types";
 
 type Props = {
     open: boolean;
     onOpenChange: (b: boolean) => void;
-    onAuth: (username: string, isAdmin: boolean) => void;
+    onAuth: (profile: UserDto) => void;
 };
 
 export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
@@ -31,17 +32,17 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
         setLoginBusy(true);
         try {
             await springLogin(loginUser, loginPw);
-            // Optional: Admin-Rolle aus User-Liste ableiten, sonst false.
-            let isAdmin = false;
+
             try {
-                const users = await api.getUsers();
-                const me = users.find((u) => u.username.toLowerCase() === loginUser.toLowerCase());
-                isAdmin = !!me && loginUser.toLowerCase() === "admin";
+                const profile = await api.getCurrentUser();
+                onAuth(profile);
+                onOpenChange(false);
             } catch {
-                isAdmin = loginUser.toLowerCase() === "admin";
+                // fallback: minimal data
+                const minimalProfile: UserDto = { id: 0, username: loginUser };
+                onAuth(minimalProfile);
+                onOpenChange(false);
             }
-            onAuth(loginUser, isAdmin);
-            onOpenChange(false);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : "Login fehlgeschlagen");
         } finally {
@@ -53,7 +54,8 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
         try {
             await register.mutateAsync({ username: regUser, password: regPw });
             toast.success("Konto erstellt");
-            onAuth(regUser, false);
+            const newProfile: UserDto = { id: 0, username: regUser };
+            onAuth(newProfile);
             onOpenChange(false);
         } catch {
             toast.error("Registrierung fehlgeschlagen");

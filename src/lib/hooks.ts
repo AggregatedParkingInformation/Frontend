@@ -18,8 +18,8 @@ export function useParkingSpaces() {
     return useQuery({
         queryKey: ["parkingspaces"],
         queryFn: api.getParkingSpaces,
+        enabled: false, // fetch only when refetch is called
         staleTime: 1000 * 30,
-        // Backend optional: do not block UI on failure
         retry: 1,
     });
 }
@@ -86,6 +86,76 @@ export function useCreateComment() {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["space-comments"] });
             qc.invalidateQueries({ queryKey: ["parkingspaces"] });
+            // invalidate review queries as well may affect comment count
+            qc.invalidateQueries({ queryKey: ["space-reviews"] });
+        },
+    });
+}
+
+// New hooks for updating and deleting reviews/comments
+export function useUpdateReview() {
+    const qc = useQueryClient();
+    return useMutation({
+        // body includes osmId and updated fields
+        mutationFn: (body: ReviewPostRequest & { osmId: number }) => api.updateReview(body.osmId, body),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["space-reviews"] });
+            qc.invalidateQueries({ queryKey: ["parkingspaces"] });
+        },
+    });
+}
+
+export function useAdminDeleteReview() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (reviewId: number) => api.adminDeleteReview(reviewId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["space-reviews"] });
+            qc.invalidateQueries({ queryKey: ["parkingspaces"] });
+        },
+    });
+}
+
+export function useAdminDeleteComment() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (commentId: number) => api.adminDeleteComment(commentId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["space-comments"] });
+            qc.invalidateQueries({ queryKey: ["parkingspaces"] });
+        },
+    });
+}
+
+export function useUpdateComment() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (body: CommentPostRequest & { osmId: number }) => api.updateComment(body.osmId, body),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["space-comments"] });
+            qc.invalidateQueries({ queryKey: ["parkingspaces"] });
+        },
+    });
+}
+
+export function useDeleteComment() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (osmId: number) => api.deleteComment(osmId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["space-comments"] });
+            qc.invalidateQueries({ queryKey: ["parkingspaces"] });
+        },
+    });
+}
+
+export function useDeleteReview() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (osmId: number) => api.deleteReview(osmId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["space-reviews"] });
+            qc.invalidateQueries({ queryKey: ["parkingspaces"] });
         },
     });
 }
@@ -112,10 +182,44 @@ export function useDeleteUser() {
     });
 }
 
-export function usePrivileges() {
+// New hook to fetch the currently logged‑in user
+export function useCurrentUser() {
     return useQuery({
-        queryKey: ["privileges"],
-        queryFn: api.getPrivileges,
+        queryKey: ["currentUser"],
+        queryFn: api.getCurrentUser,
         retry: 1,
+    });
+}
+
+// Comment voting hooks
+export function useUpvoteComment() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (commentId: number) => api.upvoteComment(commentId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["space-comments"] }),
+    });
+}
+
+export function useDeleteUpvoteComment() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (commentId: number) => api.deleteUpvoteComment(commentId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["space-comments"] }),
+    });
+}
+
+export function useDownvoteComment() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (commentId: number) => api.downvoteComment(commentId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["space-comments"] }),
+    });
+}
+
+export function useDeleteDownvoteComment() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (commentId: number) => api.deleteDownvoteComment(commentId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["space-comments"] }),
     });
 }

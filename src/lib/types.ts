@@ -1,31 +1,84 @@
 // Backend DTOs (OpenAPI)
-export type UserDto = { id: number; username: string };
-export type UserPostRequestDto = { username: string; password: string };
+export type UserDto = {
+    id: number;
+    username: string;
+    score?: number;
+    blocked?: boolean;
+    createdAt?: string;
+    reviews?: number;
+    comments?: number;
+    roles?: { id: number; name: string }[];
+};
+
+export type UserPostRequestDto = {
+    username: string;
+    password: string;
+};
+
 export type ReviewDto = {
     id: number;
     osmId: number;
     stars: number;
     reviewText: string;
+    user: {
+        id: number;
+        username: string;
+        roles?: { id: number; name: string }[];
+    };
+    createdAt?: string;
+    updatedAt?: string;
 };
+
 export type ReviewPostRequest = {
     osmId: number;
     stars: number;
     reviewText: string;
 };
+
 export type CommentDto = {
     id: number;
     osmId: number;
-    username: string;
+    user: {
+        id: number;
+        username: string;
+        roles?: { id: number; name: string }[];
+    };
     score: number;
     commentText: string;
+    voteStatus?: "UPVOTED" | "DOWNVOTED" | "NONE" | null;
+    createdAt?: string;
+    updatedAt?: string;
 };
-export type CommentPostRequest = { osmId: number; commentText: string };
-export type PrivilegeDto = { id: number; name: string };
+
+export type CommentPostRequest = {
+    osmId: number;
+    commentText: string;
+};
+
 export type ParkingSpaceDto = {
     id: number;
     osmId: number;
     reviews: number;
     comments: number;
+    type?: "public" | "private" | "company"; /** "public", "private", or "company" */
+};
+
+export type UserPermissions = {
+    isAdmin: boolean;
+};
+
+// Request DTO for bulk parking space fetch
+export type PublicParkingSpaceRequestDto = {
+    osmIds: number[]; // array of OSM IDs (int64)
+};
+
+// Response DTO for bulk parking space fetch
+export type PublicParkingSpaceResponseDto = {
+    id: number;
+    osmId: number;
+    reviews: number;
+    comments: number;
+    avgRating: number;
 };
 
 // Internal map type — merged OSM + backend aggregate

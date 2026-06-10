@@ -7,12 +7,9 @@ import { Separator } from "@/components/ui/separator";
 import { AuthDialog } from "./AuthDialog";
 import { AdminPanel } from "./AdminPanel";
 import { springLogout } from "@/lib/api";
+import type { UserDto } from "@/lib/types";
 
-export type AuthUser = {
-    username: string;
-    points: number;
-    isAdmin: boolean;
-} | null;
+export type AuthUser = UserDto | null;
 
 type Props = {
     open: boolean;
@@ -30,7 +27,13 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
         if (onAuthOpenChange) onAuthOpenChange(b);
         else setAuthOpenInner(b);
     };
+
     const [adminOpen, setAdminOpen] = useState(false);
+
+    const roleLabels: Record<string, string> = {
+        ROLE_ADMIN: "Administrator",
+        ROLE_STAFF: "Staff",
+    };
 
     return (
         <>
@@ -44,6 +47,15 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
                         </SheetTitle>
                         <SheetDescription>
                             {user ? `Angemeldet als ${user.username}` : "Du bist als Gast unterwegs."}
+                            {user?.roles?.map((role) =>
+                                roleLabels[role.name] ? (
+                                    <Badge
+                                        key={role.name}
+                                        className="ml-2">
+                                        {roleLabels[role.name]}
+                                    </Badge>
+                                ) : null,
+                            )}
                         </SheetDescription>
                     </SheetHeader>
 
@@ -55,7 +67,7 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
                                         <Award className="size-4" /> Punktestand
                                     </div>
                                     <div className="text-5xl font-bold mt-2 font-heading tabular-nums">
-                                        {user.points}
+                                        {user?.score ?? 0}
                                     </div>
                                     <div className="text-xs opacity-80 mt-2">
                                         Sammle Punkte mit Bewertungen und Kommentaren.
@@ -65,19 +77,18 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
                                 <div className="grid grid-cols-2 gap-2">
                                     <Stat
                                         label="Bewertungen"
-                                        value={3}
+                                        value={user?.reviews ?? 0}
                                     />
                                     <Stat
                                         label="Kommentare"
-                                        value={2}
+                                        value={user?.comments ?? 0}
                                     />
                                 </div>
 
-                                {user.isAdmin && (
+                                {user?.roles?.some((r) => r.name === "ROLE_ADMIN") && (
                                     <>
                                         <Separator />
                                         <div className="space-y-2">
-                                            <Badge className="bg-[hsl(20_90%_50%)] text-white">Administrator</Badge>
                                             <Button
                                                 variant="outline"
                                                 className="w-full h-11"
@@ -130,13 +141,7 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
             <AuthDialog
                 open={authOpen}
                 onOpenChange={setAuthOpen}
-                onAuth={(username, isAdmin) =>
-                    setUser({
-                        username,
-                        points: 120,
-                        isAdmin,
-                    })
-                }
+                onAuth={(profile) => setUser(profile)}
             />
             <AdminPanel
                 open={adminOpen}

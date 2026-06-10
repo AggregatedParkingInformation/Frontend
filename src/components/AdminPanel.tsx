@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ban, Check, Loader2, Trash2 } from "lucide-react";
+import { Ban, Check, Loader2, Trash2, UserPlus, UserX } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useDeleteUser, usePrivileges, useUsers } from "@/lib/hooks";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useDeleteUser, useUsers } from "@/lib/hooks";
 import type { UserDto } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -26,19 +28,45 @@ type Props = {
 
 export function AdminPanel({ open, onOpenChange }: Props) {
     const usersQ = useUsers();
-    const privsQ = usePrivileges();
     const delUser = useDeleteUser();
     const [confirmDel, setConfirmDel] = useState<UserDto | null>(null);
     const [suspended, setSuspended] = useState<Set<number>>(new Set());
     const [search, setSearch] = useState("");
+    const qc = useQueryClient();
 
-    const toggle = (id: number) =>
+    const blockUserMut = useMutation({
+        mutationFn: (id: number) => api.blockUser(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    });
+    const unblockUserMut = useMutation({
+        mutationFn: (id: number) => api.unblockUser(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    });
+
+    // moderator management mutations
+    const addModeratorMut = useMutation({
+        mutationFn: (id: number) => api.addModerator(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    });
+    const removeModeratorMut = useMutation({
+        mutationFn: (id: number) => api.removeModerator(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    });
+    const toggle = (id: number) => {
+        if (suspended.has(id)) {
+            // currently blocked, unblock
+            unblockUserMut.mutate(id);
+        } else {
+            // block user
+            blockUserMut.mutate(id);
+        }
         setSuspended((s) => {
             const ns = new Set(s);
             if (ns.has(id)) ns.delete(id);
             else ns.add(id);
             return ns;
         });
+    };
 
     const users = (usersQ.data ?? []).filter((u) => u.username.toLowerCase().includes(search.toLowerCase()));
 
@@ -47,7 +75,7 @@ export function AdminPanel({ open, onOpenChange }: Props) {
             <Sheet
                 open={open}
                 onOpenChange={onOpenChange}>
-                <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
+                <SheetContent className="w-full sm:max-w-3xl p-0 flex flex-col">
                     <SheetHeader className="p-6 pb-4 border-b">
                         <SheetTitle className="font-heading">Admin-Panel</SheetTitle>
                         <SheetDescription>Verwalte Nutzer und Privilegien.</SheetDescription>
@@ -79,48 +107,76 @@ export function AdminPanel({ open, onOpenChange }: Props) {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Nutzer</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Aktionen</TableHead>
+                                            <TableHead className="w-full">Nutzer</TableHead>
+                                            <TableHead className="text-right w-0 whitespace-nowrap">Aktionen</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {users.map((u) => {
                                             const blocked = suspended.has(u.id);
+                                            const isMod = u.roles?.some((r) => r.name === "ROLE_STAFF");
+                                            const isAdmin = u.roles?.some((r) => r.name === "ROLE_ADMIN");
                                             return (
                                                 <TableRow key={u.id}>
-                                                    <TableCell className="font-medium">
-                                                        {u.username}
-                                                        <div className="text-xs text-muted-foreground">#{u.id}</div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {blocked ? (
-                                                            <Badge variant="destructive">Gesperrt</Badge>
-                                                        ) : (
-                                                            <Badge variant="secondary">Aktiv</Badge>
-                                                        )}
+                                                    <TableCell className="font-medium max-w-0">
+                                                        <div
+                                                            className="truncate block"
+                                                            title={u.username}>
+                                                            {u.username}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground flex gap-2 mt-1">
+                                                            <span>#{u.id}</span>
+                                                            {blocked ? (
+                                                                <Badge variant="destructive">Gesperrt</Badge>
+                                                            ) : (
+                                                                <Badge variant="secondary">Aktiv</Badge>
+                                                            )}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-1.5">
+                                                            {/* Moderator toggle button */}
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                disabled={!isMod && isAdmin}
+                                                                onClick={() => {
+                                                                    if (isMod) {
+                                                                        removeModeratorMut.mutate(u.id);
+                                                                    } else {
+                                                                        addModeratorMut.mutate(u.id);
+                                                                    }
+                                                                }}>
+                                                                {!isMod && isAdmin ? (
+                                                                    <Ban className="mr-1 h-4 w-4 text-red-500" />
+                                                                ) : isMod ? (
+                                                                    <UserX className="mr-1 h-4 w-4 text-emerald-500" />
+                                                                ) : (
+                                                                    <UserPlus className="mr-1 h-4 w-4 text-gray-400" />
+                                                                )}
+                                                                Mod
+                                                            </Button>
+                                                            {/* Block / Unblock button */}
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
                                                                 onClick={() => toggle(u.id)}>
                                                                 {blocked ? (
                                                                     <>
-                                                                        <Check /> Aktivieren
+                                                                        <Check className="mr-1 h-4 w-4" /> Aktivieren
                                                                     </>
                                                                 ) : (
                                                                     <>
-                                                                        <Ban /> Sperren
+                                                                        <Ban className="mr-1 h-4 w-4" /> Sperren
                                                                     </>
                                                                 )}
                                                             </Button>
+                                                            {/* Delete button */}
                                                             <Button
                                                                 variant="destructive"
                                                                 size="sm"
                                                                 onClick={() => setConfirmDel(u)}>
-                                                                <Trash2 />
+                                                                <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </div>
                                                     </TableCell>
@@ -130,23 +186,6 @@ export function AdminPanel({ open, onOpenChange }: Props) {
                                     </TableBody>
                                 </Table>
                             )}
-                        </div>
-
-                        <div>
-                            <h3 className="text-sm font-semibold mb-2">Privilegien</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {(privsQ.data ?? []).map((p) => (
-                                    <Badge
-                                        key={p.id}
-                                        variant="outline"
-                                        className="text-xs">
-                                        {p.name}
-                                    </Badge>
-                                ))}
-                                {!privsQ.isLoading && (privsQ.data ?? []).length === 0 && (
-                                    <span className="text-xs text-muted-foreground">Keine Privilegien vorhanden.</span>
-                                )}
-                            </div>
                         </div>
                     </div>
                 </SheetContent>

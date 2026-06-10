@@ -29,6 +29,7 @@ function mapElement(el: OsmElement): Parkplatz | null {
     const lng = el.lon ?? el.center?.lon;
     if (lat == null || lng == null) return null;
     const tags = el.tags ?? {};
+    if (tags.parking === "lane" || tags.access === "private") return null;
     const name = tags.name ?? (isHiker(tags) ? "Wanderparkplatz" : "Parkplatz");
     const region = tags["addr:city"] ?? tags["addr:suburb"] ?? tags.operator ?? "";
     return {

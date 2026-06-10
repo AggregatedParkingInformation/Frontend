@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { MessageSquarePlus, Mountain, Navigation, Star as StarIcon, X } from "lucide-react";
+import {
+    MessageSquarePlus,
+    Mountain,
+    Navigation,
+    Star as StarIcon,
+    X,
+    ThumbsUp,
+    ThumbsDown,
+    User,
+    Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StarRating } from "./StarRating";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +25,23 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { distanzKm, type LatLng, type Parkplatz } from "@/lib/types";
-import { useCreateComment, useCreateReview, useSpaceComments, useSpaceReviews } from "@/lib/hooks";
+import {
+    useCreateComment,
+    useCreateReview,
+    useUpdateComment,
+    useUpdateReview,
+    useSpaceComments,
+    useSpaceReviews,
+    useCurrentUser,
+    useUpvoteComment,
+    useDeleteUpvoteComment,
+    useDownvoteComment,
+    useDeleteDownvoteComment,
+    useAdminDeleteReview,
+    useAdminDeleteComment,
+    useDeleteReview,
+    useDeleteComment,
+} from "@/lib/hooks";
 import { toast } from "sonner";
 
 type Props = {
@@ -33,12 +59,50 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
     const [ratingOpen, setRatingOpen] = useState(false);
     const [commentOpen, setCommentOpen] = useState(false);
     const [myRating, setMyRating] = useState(0);
+    const [reviewText, setReviewText] = useState("");
     const [comment, setComment] = useState("");
 
     const reviewsQ = useSpaceReviews(parkplatz.osmId);
     const commentsQ = useSpaceComments(parkplatz.osmId);
     const createReview = useCreateReview();
     const createComment = useCreateComment();
+    const updateReview = useUpdateReview();
+    const updateComment = useUpdateComment();
+    const currentUser = useCurrentUser();
+    const upvoteComment = useUpvoteComment();
+    const deleteUpvoteComment = useDeleteUpvoteComment();
+    const downvoteComment = useDownvoteComment();
+    const deleteDownvoteComment = useDeleteDownvoteComment();
+    const isAdmin = currentUser.data?.roles?.some((r) => r.name === "ROLE_ADMIN");
+
+    // admin delete hooks
+    const adminDeleteReview = useAdminDeleteReview();
+    const adminDeleteComment = useAdminDeleteComment();
+    // regular delete hooks
+    const deleteReview = useDeleteReview();
+    const deleteComment = useDeleteComment();
+
+    // state for delete confirmation modal
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<{ type: "review" | "comment"; id: number } | null>(null);
+
+    const handleDeleteClick = (type: "review" | "comment", id: number) => {
+        setDeleteTarget({ type, id });
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        if (isAdmin) {
+            if (deleteTarget.type === "review") await adminDeleteReview.mutateAsync(deleteTarget.id);
+            else await adminDeleteComment.mutateAsync(deleteTarget.id);
+        } else {
+            if (deleteTarget.type === "review") await deleteReview.mutateAsync(deleteTarget.id);
+            else await deleteComment.mutateAsync(deleteTarget.id);
+        }
+        setDeleteModalOpen(false);
+        setDeleteTarget(null);
+    };
 
     const dist = userPos ? distanzKm(userPos, parkplatz) : null;
 
@@ -55,30 +119,59 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
     };
 
     const submitReview = async () => {
+        if (!currentUser.data) {
+            toast.error("Bitte einloggen, um eine Bewertung zu schreiben");
+            return;
+        }
+        const existing = reviews.find((r) => r.user?.id === currentUser.data.id);
         try {
-            await createReview.mutateAsync({
-                osmId: parkplatz.osmId,
-                stars: myRating,
-                reviewText: "",
-            });
-            toast.success("Bewertung gespeichert");
+            if (existing) {
+                await updateReview.mutateAsync({
+                    osmId: parkplatz.osmId,
+                    stars: myRating,
+                    reviewText: reviewText,
+                });
+                toast.success("Bewertung aktualisiert");
+            } else {
+                await createReview.mutateAsync({
+                    osmId: parkplatz.osmId,
+                    stars: myRating,
+                    reviewText: reviewText,
+                });
+                toast.success("Bewertung gespeichert");
+            }
             setRatingOpen(false);
             setMyRating(0);
-        } catch {
+        } catch (error) {
+            console.warn(error);
             toast.error("Bewertung konnte nicht gespeichert werden");
         }
     };
 
     const submitComment = async () => {
+        if (!currentUser.data) {
+            toast.error("Bitte einloggen, um einen Kommentar zu schreiben");
+            return;
+        }
+        const existing = comments.find((c) => c.user?.id === currentUser.data.id);
         try {
-            await createComment.mutateAsync({
-                osmId: parkplatz.osmId,
-                commentText: comment,
-            });
-            toast.success("Kommentar gespeichert");
+            if (existing) {
+                await updateComment.mutateAsync({
+                    osmId: parkplatz.osmId,
+                    commentText: comment,
+                });
+                toast.success("Kommentar aktualisiert");
+            } else {
+                await createComment.mutateAsync({
+                    osmId: parkplatz.osmId,
+                    commentText: comment,
+                });
+                toast.success("Kommentar gespeichert");
+            }
             setCommentOpen(false);
             setComment("");
-        } catch {
+        } catch (error) {
+            console.warn(error);
             toast.error("Kommentar konnte nicht gespeichert werden");
         }
     };
@@ -180,11 +273,26 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                             <div
                                 key={r.id}
                                 className="rounded-xl border bg-card p-3">
-                                <StarRating
-                                    value={r.stars}
-                                    readOnly
-                                    size={14}
-                                />
+                                <div className="flex justify-between items-center mb-1">
+                                    <StarRating
+                                        value={r.stars}
+                                        readOnly
+                                        size={14}
+                                    />
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-sm font-semibold text-muted-foreground">
+                                            {r.user?.username}
+                                        </span>
+                                        {isAdmin && (
+                                            <button
+                                                className="text-destructive hover:text-destructive/80"
+                                                onClick={() => handleDeleteClick("review", r.id)}
+                                                title="Bewertung löschen">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                                 {r.reviewText && <p className="text-sm mt-1.5 text-foreground/90">{r.reviewText}</p>}
                             </div>
                         ))}
@@ -200,8 +308,52 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                 key={k.id}
                                 className="rounded-xl border bg-card p-3">
                                 <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-sm font-semibold">{k.username}</span>
-                                    <span className="text-xs text-muted-foreground tabular-nums">{k.score} Pkt</span>
+                                    <div className="flex items-center gap-2">
+                                        <User
+                                            size={16}
+                                            className="text-muted-foreground"
+                                        />
+                                        <span className="text-sm font-semibold">{k.user?.username}</span>
+                                        {isAdmin && (
+                                            <button
+                                                className="text-destructive hover:text-destructive/80"
+                                                onClick={() => handleDeleteClick("comment", k.id)}
+                                                title="Kommentar löschen">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground mr-2">
+                                        <span className="tabular-nums">{k.score} Votes</span>
+                                        <button
+                                            className={
+                                                "text-muted-foreground hover:scale-105 " +
+                                                (k.voteStatus === "UPVOTED" ? "text-green-500" : "")
+                                            }
+                                            onClick={() => {
+                                                if (k.voteStatus === "UPVOTED") {
+                                                    deleteUpvoteComment.mutateAsync(k.id);
+                                                } else {
+                                                    upvoteComment.mutateAsync(k.id);
+                                                }
+                                            }}>
+                                            <ThumbsUp size={16} />
+                                        </button>
+                                        <button
+                                            className={
+                                                "text-muted-foreground hover:scale-105 ml-1 " +
+                                                (k.voteStatus === "DOWNVOTED" ? "text-red-500" : "")
+                                            }
+                                            onClick={() => {
+                                                if (k.voteStatus === "DOWNVOTED") {
+                                                    deleteDownvoteComment.mutateAsync(k.id);
+                                                } else {
+                                                    downvoteComment.mutateAsync(k.id);
+                                                }
+                                            }}>
+                                            <ThumbsDown size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                                 <p className="text-sm mt-1 text-foreground/90">{k.commentText}</p>
                             </div>
@@ -237,6 +389,13 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                             size={40}
                         />
                     </div>
+                    <Textarea
+                        placeholder="Deine Meinung..."
+                        value={reviewText}
+                        onChange={(e) => setReviewText(e.target.value)}
+                        maxLength={300}
+                        className="mt-2"
+                    />
                     <DialogFooter>
                         <Button
                             variant="ghost"
@@ -292,6 +451,29 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                             onClick={submitComment}>
                             Absenden
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Modal */}
+            <Dialog
+                open={deleteModalOpen}
+                onOpenChange={setDeleteModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Löschen bestätigen</DialogTitle>
+                        <DialogDescription>
+                            Möchtest du diese {deleteTarget?.type === "review" ? "Bewertung" : "Kommentar"} wirklich
+                            löschen?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteModalOpen(false)}>
+                            Abbrechen
+                        </Button>
+                        <Button onClick={confirmDelete}>Löschen</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
