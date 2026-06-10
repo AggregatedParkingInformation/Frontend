@@ -328,7 +328,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                         <button
                                             className={
                                                 "text-muted-foreground hover:scale-105 " +
-                                                (k.voteStatus === "UPVOTED" ? "text-green-500" : "")
+                                                (k.voteStatus === "UPVOTED" ? "text-green-500!" : "")
                                             }
                                             onClick={() => {
                                                 if (k.voteStatus === "UPVOTED") {
@@ -342,7 +342,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                         <button
                                             className={
                                                 "text-muted-foreground hover:scale-105 ml-1 " +
-                                                (k.voteStatus === "DOWNVOTED" ? "text-red-500" : "")
+                                                (k.voteStatus === "DOWNVOTED" ? "text-red-500!" : "")
                                             }
                                             onClick={() => {
                                                 if (k.voteStatus === "DOWNVOTED") {
