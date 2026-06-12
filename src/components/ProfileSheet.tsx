@@ -42,7 +42,7 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
             <Sheet
                 open={open}
                 onOpenChange={onOpenChange}>
-                <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
+                <SheetContent className="w-full sm:max-w-md p-0 flex flex-col gap-0">
                     <SheetHeader className="p-6 pb-4 border-b">
                         <SheetTitle className="flex items-center gap-2 font-heading">
                             <UserIcon className="size-5" /> Mein Profil
