@@ -9,6 +9,7 @@ import { AdminPanel } from "./AdminPanel";
 import { springLogout } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import type { UserDto } from "@/lib/types";
+import { ROLE_LABELS, userIsAdmin } from "@/lib/roles";
 import { useAuthStore } from "@/lib/stores/authStore";
 
 export type AuthUser = UserDto | null;
@@ -34,11 +35,6 @@ export function ProfileSheet({ open, onOpenChange, initialAuthOpen, onAuthOpenCh
 
     const [adminOpen, setAdminOpen] = useState(false);
 
-    const roleLabels: Record<string, string> = {
-        ROLE_ADMIN: "Administrator",
-        ROLE_STAFF: "Staff",
-    };
-
     return (
         <>
             <Sheet
@@ -52,11 +48,11 @@ export function ProfileSheet({ open, onOpenChange, initialAuthOpen, onAuthOpenCh
                         <SheetDescription>
                             {user ? `Angemeldet als ${user.username}` : "Du bist als Gast unterwegs."}
                             {user?.roles?.map((role) =>
-                                roleLabels[role.name] ? (
+                                ROLE_LABELS[role.name] ? (
                                     <Badge
                                         key={role.name}
                                         className="ml-2">
-                                        {roleLabels[role.name]}
+                                        {ROLE_LABELS[role.name]}
                                     </Badge>
                                 ) : null,
                             )}
@@ -89,7 +85,7 @@ export function ProfileSheet({ open, onOpenChange, initialAuthOpen, onAuthOpenCh
                                     />
                                 </div>
 
-                                {user?.roles?.some((r) => r.name === "ROLE_ADMIN") && (
+                                {userIsAdmin(user) && (
                                     <>
                                         <Separator />
                                         <div className="space-y-2">

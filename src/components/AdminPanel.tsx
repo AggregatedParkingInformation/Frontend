@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useDeleteUser, useUsers } from "@/lib/hooks";
+import { useAdminUsers, useDeleteUser } from "@/lib/hooks";
+import { userIsAdmin, userIsStaff } from "@/lib/roles";
 import type { UserDto } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -27,7 +28,7 @@ type Props = {
 };
 
 export function AdminPanel({ open, onOpenChange }: Props) {
-    const usersQ = useUsers();
+    const usersQ = useAdminUsers(open);
     const delUser = useDeleteUser();
     const [confirmDel, setConfirmDel] = useState<UserDto | null>(null);
     const [suspended, setSuspended] = useState<Set<number>>(new Set());
@@ -114,8 +115,8 @@ export function AdminPanel({ open, onOpenChange }: Props) {
                                     <TableBody>
                                         {users.map((u) => {
                                             const blocked = suspended.has(u.id);
-                                            const isMod = u.roles?.some((r) => r.name === "ROLE_STAFF");
-                                            const isAdmin = u.roles?.some((r) => r.name === "ROLE_ADMIN");
+                                            const isMod = userIsStaff(u);
+                                            const isAdmin = userIsAdmin(u);
                                             return (
                                                 <TableRow key={u.id}>
                                                     <TableCell className="font-medium max-w-0">

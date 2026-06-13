@@ -2,6 +2,11 @@ import type { Parkplatz } from "./types";
 import { readTile, TILE, tileBbox, tilesForBbox, writeTile, type Tile } from "./osmCache";
 
 const OVERPASS = import.meta.env.VITE_OVERPASS_URL ?? "https://overpass-api.de/api/interpreter";
+const OVERPASS_MIRRORS = [
+    OVERPASS,
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+];
 
 type OsmElement = {
     type: "node" | "way" | "relation";
@@ -54,14 +59,29 @@ async function fetchTiles(tiles: Tile[], signal?: AbortSignal): Promise<Map<stri
         })
         .join("");
     const q = `[out:json][timeout:25];(${parts});out center tags 500;`;
-    const res = await fetch(OVERPASS, {
-        method: "POST",
-        body: "data=" + encodeURIComponent(q),
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        signal,
-    });
-    if (!res.ok) throw new Error(`Overpass ${res.status}`);
-    const json = (await res.json()) as { elements: OsmElement[] };
+
+    let lastErr: unknown = null;
+    let json: { elements: OsmElement[] } | null = null;
+    for (const endpoint of OVERPASS_MIRRORS) {
+        try {
+            const res = await fetch(endpoint, {
+                method: "POST",
+                body: "data=" + encodeURIComponent(q),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                signal,
+            });
+            if (!res.ok) {
+                lastErr = new Error(`Overpass ${endpoint} → ${res.status}`);
+                continue;
+            }
+            json = (await res.json()) as { elements: OsmElement[] };
+            break;
+        } catch (e) {
+            if (signal?.aborted) throw e;
+            lastErr = e;
+        }
+    }
+    if (!json) throw lastErr ?? new Error("Overpass: alle Mirrors fehlgeschlagen");
     const items = json.elements.map(mapElement).filter((x): x is Parkplatz => x !== null);
 
     // Bucket each item into a tile (by lat/lng)
@@ -82,11 +102,12 @@ export async function fetchParkplaetzeInBbox(b: Bbox, signal?: AbortSignal): Pro
     const missing: Tile[] = [];
     const collected: Parkplatz[] = [];
 
-    for (const t of tiles) {
-        const cached = readTile(t);
+    const cachedReads = await Promise.all(tiles.map((t) => readTile(t)));
+    tiles.forEach((t, i) => {
+        const cached = cachedReads[i];
         if (cached) collected.push(...cached);
         else missing.push(t);
-    }
+    });
 
     if (missing.length > 0) {
         // Cap per request to avoid huge Overpass queries; chunk in batches of 25 tiles
@@ -94,11 +115,13 @@ export async function fetchParkplaetzeInBbox(b: Bbox, signal?: AbortSignal): Pro
         for (let i = 0; i < missing.length; i += CHUNK) {
             const chunk = missing.slice(i, i + CHUNK);
             const buckets = await fetchTiles(chunk, signal);
-            for (const t of chunk) {
-                const data = buckets.get(`${t.x}_${t.y}`) ?? [];
-                writeTile(t, data);
-                collected.push(...data);
-            }
+            await Promise.all(
+                chunk.map(async (t) => {
+                    const data = buckets.get(`${t.x}_${t.y}`) ?? [];
+                    await writeTile(t, data);
+                    collected.push(...data);
+                }),
+            );
         }
     }
 

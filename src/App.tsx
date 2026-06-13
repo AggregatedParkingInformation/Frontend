@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Locate, Menu, User } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, Locate, Menu, User, ZoomIn } from "lucide-react";
 import { AdminPanel } from "@/components/AdminPanel";
 import { Map as MapView, type MapHandleApi } from "@/components/Map";
 import { FilterPanel, defaultFilter, type FilterState } from "@/components/FilterPanel";
@@ -9,109 +9,56 @@ import { ProfileSheet } from "@/components/ProfileSheet";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Toaster } from "sonner";
-import { useAverageStars, useOsmParkplaetze, useParkingSpaces } from "@/lib/hooks";
+import { useOsmParkplaetze, useParkingSpacesBulk } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { distanzKm, type LatLng, type Parkplatz } from "@/lib/types";
 import type { Bbox } from "@/lib/osm";
-
-const INITIAL_CENTER: LatLng = { lat: 49.9929, lng: 8.2473 };
-
-function debounce<F extends (...a: never[]) => void>(fn: F, ms: number) {
-    let t: ReturnType<typeof setTimeout>;
-    return ((...a: Parameters<F>) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...a), ms);
-    }) as F;
-}
-
-function useIsMobile() {
-    const [m, setM] = useState(() =>
-        typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
-    );
-    useEffect(() => {
-        const mq = window.matchMedia("(max-width: 767px)");
-        const h = (e: MediaQueryListEvent) => setM(e.matches);
-        mq.addEventListener("change", h);
-        return () => mq.removeEventListener("change", h);
-    }, []);
-    return m;
-}
+import { BBOX_DEBOUNCE_MS, INITIAL_CENTER, PARKING_LOAD_MIN_ZOOM } from "@/lib/constants";
+import { debounce } from "@/lib/debounce";
+import { mergeParkplaetze } from "@/lib/parkplatzMerge";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 export default function App() {
     const mapRef = useRef<MapHandleApi>(null);
     const [filter, setFilter] = useState<FilterState>(defaultFilter);
     const [selected, setSelected] = useState<Parkplatz | null>(null);
     const [bbox, setBbox] = useState<Bbox | null>(null);
-    const [userPos, setUserPos] = useState<LatLng | null>(null);
     const [mapCenter, setMapCenter] = useState<LatLng>(INITIAL_CENTER);
+    const [zoom, setZoom] = useState<number>(15);
     const [nearbyOpen, setNearbyOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const [authOpen, setAuthOpen] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [adminPanelOpen, setAdminPanelOpen] = useState(false);
     const isMobile = useIsMobile();
+    const { pos: userPos, locate } = useGeolocation();
 
-    // Load auth once (zustand store)
     const user = useAuthStore((s) => s.user);
     const loadAuth = useAuthStore((s) => s.loadOnce);
     useEffect(() => {
         void loadAuth();
     }, [loadAuth]);
 
-    const setBboxDebounced = useMemo(
+    const onBboxChange = useMemo(
         () =>
-            debounce((b: Bbox) => {
+            debounce((b: Bbox | null) => {
                 setBbox(b);
-                setMapCenter({
-                    lat: (b.north + b.south) / 2,
-                    lng: (b.east + b.west) / 2,
-                });
-            }, 400),
+                if (b) {
+                    setMapCenter({
+                        lat: (b.north + b.south) / 2,
+                        lng: (b.east + b.west) / 2,
+                    });
+                }
+            }, BBOX_DEBOUNCE_MS),
         [],
     );
 
     const osmQ = useOsmParkplaetze(bbox);
-    const backendQ = useParkingSpaces();
+    const osmIds = useMemo(() => (osmQ.data ?? []).map((p) => p.osmId), [osmQ.data]);
+    const backendQ = useParkingSpacesBulk(osmIds);
 
-    // Geolocation
-    useEffect(() => {
-        if (!navigator.geolocation) return;
-        navigator.geolocation.getCurrentPosition(
-            (pos) =>
-                setUserPos({
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude,
-                }),
-            () => {
-                /* permission denied, fallback to map center */
-            },
-            { enableHighAccuracy: false, timeout: 5000 },
-        );
-    }, []);
-
-    const avgMap = useAverageStars(backendQ.data);
-
-    // Merge OSM + backend aggregates + averages
-    const parkplaetze = useMemo<Parkplatz[]>(() => {
-        const list = osmQ.data ?? [];
-        const aggMap = new Map<number, { reviews: number; comments: number }>();
-        for (const a of backendQ.data ?? [])
-            aggMap.set(a.osmId, {
-                reviews: a.reviews,
-                comments: a.comments,
-            });
-        return list.map((p) => {
-            const a = aggMap.get(p.osmId);
-            const avg = avgMap.get(p.osmId);
-            if (!a && !avg) return p;
-            return {
-                ...p,
-                anzahlBewertungen: avg?.count ?? a?.reviews ?? 0,
-                anzahlKommentare: a?.comments ?? 0,
-                bewertung: avg?.avg ?? 0,
-            };
-        });
-    }, [osmQ.data, backendQ.data, avgMap]);
+    const parkplaetze = useMemo(() => mergeParkplaetze(osmQ.data ?? [], backendQ.data), [osmQ.data, backendQ.data]);
 
     const referenz: LatLng = userPos ?? mapCenter;
 
@@ -121,7 +68,6 @@ export default function App() {
             if (filter.typ === "wandern" && !p.istWanderparkplatz) return false;
             if (filter.typ === "standard" && p.istWanderparkplatz) return false;
             if (filter.minSterne > 0) {
-                // require a real rating from backend
                 if (!p.anzahlBewertungen || p.bewertung < filter.minSterne) return false;
             }
             if (term && !`${p.name} ${p.region}`.toLowerCase().includes(term)) return false;
@@ -135,35 +81,31 @@ export default function App() {
         return list;
     }, [filter, parkplaetze, referenz]);
 
-    const handleSelect = (p: Parkplatz) => {
+    const handleMapSelect = useCallback((p: Parkplatz) => {
+        setSelected(p);
+        setMobileFilterOpen(false);
+    }, []);
+
+    const handleListSelect = useCallback((p: Parkplatz) => {
         setSelected(p);
         mapRef.current?.flyTo(p.lat, p.lng);
         setMobileFilterOpen(false);
-    };
+    }, []);
 
-    const handlePlaceSelect = (p: { lat: number; lng: number }) => {
+    const handlePlaceSelect = useCallback((p: { lat: number; lng: number }) => {
         mapRef.current?.flyTo(p.lat, p.lng, 14);
-    };
+    }, []);
 
     const handleLocateMe = () => {
         if (userPos) {
             mapRef.current?.flyTo(userPos.lat, userPos.lng, 14);
-        } else if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const p = {
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
-                    };
-                    setUserPos(p);
-                    mapRef.current?.flyTo(p.lat, p.lng, 14);
-                },
-                () => {},
-            );
+        } else {
+            locate((p) => mapRef.current?.flyTo(p.lat, p.lng, 14));
         }
     };
 
     const loading = osmQ.isFetching;
+    const zoomTooFarOut = zoom < PARKING_LOAD_MIN_ZOOM;
 
     return (
         <div className="relative w-screen h-screen overflow-hidden bg-background">
@@ -172,10 +114,20 @@ export default function App() {
                 parkplaetze={filtered}
                 userPos={userPos}
                 selectedId={selected?.osmId ?? null}
-                onSelect={handleSelect}
-                onBboxChange={setBboxDebounced}
+                onSelect={handleMapSelect}
+                onBboxChange={onBboxChange}
+                onZoomChange={setZoom}
                 initialCenter={INITIAL_CENTER}
             />
+
+            {zoomTooFarOut && (
+                <div className="pointer-events-none fixed bottom-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[900]">
+                    <div className="flex items-center gap-2 rounded-full bg-background/95 backdrop-blur px-4 py-2 shadow-[var(--shadow-elevated)] border text-sm">
+                        <ZoomIn className="size-4 text-muted-foreground" />
+                        <span>Hineinzoomen, um Parkplätze zu laden</span>
+                    </div>
+                </div>
+            )}
 
             {/* Desktop sidebar */}
             <aside className="hidden md:flex fixed top-4 left-4 bottom-4 z-[1000] w-80 flex-col rounded-2xl border bg-background/95 backdrop-blur shadow-[var(--shadow-elevated)] overflow-hidden">
@@ -199,7 +151,12 @@ export default function App() {
                     />
                 </div>
                 <div className="px-4 py-2.5 text-[11px] text-muted-foreground border-t flex items-center gap-2">
-                    {loading ? (
+                    {zoomTooFarOut ? (
+                        <>
+                            <ZoomIn className="size-3" /> Zoom {zoom} – ab Stufe {PARKING_LOAD_MIN_ZOOM} werden
+                            Parkplätze geladen
+                        </>
+                    ) : loading ? (
                         <>
                             <Loader2 className="size-3 animate-spin" /> Lade OpenStreetMap…
                         </>
@@ -246,7 +203,7 @@ export default function App() {
                 </Sheet>
                 <div className="flex-1 px-4 h-12 rounded-2xl bg-background shadow-lg border flex items-center text-sm">
                     <span className="font-heading font-semibold truncate">
-                        {loading ? "Lade…" : `${filtered.length} Parkplätze`}
+                        {zoomTooFarOut ? "Hineinzoomen…" : loading ? "Lade…" : `${filtered.length} Parkplätze`}
                     </span>
                 </div>
             </div>
@@ -264,7 +221,6 @@ export default function App() {
                 </aside>
             )}
 
-            {/* Mobile detail bottom-sheet — only mount on mobile so the overlay doesn't block desktop clicks */}
             {isMobile && (
                 <Sheet
                     open={!!selected}
@@ -318,7 +274,7 @@ export default function App() {
                 referenz={referenz}
                 referenzLabel={userPos ? "deinem Standort" : "der Kartenmitte"}
                 selectedId={selected?.osmId ?? null}
-                onSelect={handleSelect}
+                onSelect={handleListSelect}
             />
             <AdminPanel
                 open={adminPanelOpen}

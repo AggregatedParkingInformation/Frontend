@@ -6,7 +6,6 @@ import type {
     ReviewPostRequest,
     UserDto,
     UserPostRequestDto,
-    UserPermissions,
 } from "./types";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -75,7 +74,6 @@ export const api = {
     // auth
     getCurrentUser: () => req<UserDto>("/api/v1/public/profiles/me"),
     // parking spaces (public)
-    getParkingSpaces: () => req<ParkingSpaceDto[]>("/api/v1/public/parkingspaces"),
     getParkingSpacesBulk: (osmIds: number[]) =>
         req<ParkingSpaceDto[]>("/api/v1/public/parkingspaces", {
             method: "POST",
@@ -105,8 +103,8 @@ export const api = {
     // users / auth
     register: (body: UserPostRequestDto) =>
         req<UserDto>("/api/v1/public/register", { method: "POST", body: JSON.stringify(body) }),
-    getUsers: () => req<UserDto[]>("/api/v1/users"),
-    getUser: (id: number) => req<UserDto>(`/api/v1/users/${id}`),
+    getAdminUsers: () => req<UserDto[]>("/api/v1/users"),
+    getAdminUser: (id: number) => req<UserDto>(`/api/v1/users/${id}`),
     // user block management (admin)
     blockUser: (id: number) => req<void>(`/api/v1/users/${id}/block`, { method: "POST" }),
     unblockUser: (id: number) => req<void>(`/api/v1/users/${id}/block`, { method: "DELETE" }),
@@ -117,6 +115,4 @@ export const api = {
     // admin delete reviews/comments
     adminDeleteReview: (reviewId: number) => req<void>(`/api/v1/admin/reviews/${reviewId}`, { method: "DELETE" }),
     adminDeleteComment: (commentId: number) => req<void>(`/api/v1/admin/comments/${commentId}`, { method: "DELETE" }),
-    // permissions
-    getUserPermissions: () => req<UserPermissions>("/api/v1/me/permissions"),
 };

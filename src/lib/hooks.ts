@@ -1,8 +1,8 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { fetchParkplaetzeInBbox, type Bbox } from "./osm";
 import { searchPlaces } from "./geocode";
-import type { CommentPostRequest, ParkingSpaceDto, ReviewPostRequest, UserPostRequestDto } from "./types";
+import type { CommentPostRequest, ReviewPostRequest, UserPostRequestDto } from "./types";
 
 export function useOsmParkplaetze(bbox: Bbox | null) {
     return useQuery({
@@ -15,10 +15,12 @@ export function useOsmParkplaetze(bbox: Bbox | null) {
     });
 }
 
-export function useParkingSpaces() {
+export function useParkingSpacesBulk(osmIds: number[]) {
+    const key = osmIds.length ? [...osmIds].sort((a, b) => a - b) : [];
     return useQuery({
-        queryKey: ["parkingspaces"],
-        queryFn: api.getParkingSpaces,
+        queryKey: ["parkingspaces", key],
+        queryFn: () => api.getParkingSpacesBulk(osmIds),
+        enabled: osmIds.length > 0,
         staleTime: 1000 * 60,
         retry: 1,
     });
@@ -34,31 +36,6 @@ export function usePlaceSuggestions(q: string) {
         staleTime: 1000 * 60 * 5,
         retry: 0,
     });
-}
-
-/**
- * Fetches reviews for every parking space that has any, in parallel,
- * and returns a Map osmId → averageStars (0 if not yet loaded).
- */
-export function useAverageStars(spaces: ParkingSpaceDto[] | undefined) {
-    const list = (spaces ?? []).filter((s) => s.reviews > 0);
-    const results = useQueries({
-        queries: list.map((s) => ({
-            queryKey: ["space-reviews", s.osmId],
-            queryFn: () => api.getReviewsForSpace(s.osmId),
-            staleTime: 1000 * 60,
-            retry: 1,
-        })),
-    });
-    const map = new Map<number, { avg: number; count: number }>();
-    list.forEach((s, i) => {
-        const data = results[i]?.data;
-        if (data && data.length > 0) {
-            const avg = data.reduce((sum, r) => sum + r.stars, 0) / data.length;
-            map.set(s.osmId, { avg, count: data.length });
-        }
-    });
-    return map;
 }
 
 export function useSpaceReviews(osmBackendId: number | null) {
@@ -178,11 +155,12 @@ export function useRegister() {
     });
 }
 
-export function useUsers() {
+export function useAdminUsers(enabled: boolean) {
     return useQuery({
         queryKey: ["users"],
-        queryFn: api.getUsers,
+        queryFn: api.getAdminUsers,
         retry: 1,
+        enabled,
     });
 }
 

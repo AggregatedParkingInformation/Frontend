@@ -41,6 +41,7 @@ import {
     useDeleteReview,
     useDeleteComment,
 } from "@/lib/hooks";
+import { userIsAdmin } from "@/lib/roles";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { toast } from "sonner";
 
@@ -69,7 +70,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
     const updateReview = useUpdateReview();
     const updateComment = useUpdateComment();
     const currentUser = useAuthStore((s) => s.user);
-    const isAdmin = useAuthStore((s) => s.isAdmin);
+    const isAdmin = userIsAdmin(currentUser);
     const upvoteComment = useUpvoteComment();
     const deleteUpvoteComment = useDeleteUpvoteComment();
     const downvoteComment = useDownvoteComment();

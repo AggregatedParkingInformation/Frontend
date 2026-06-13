@@ -9,12 +9,12 @@ export default defineConfig([
     globalIgnores(["dist", "src/components/ui"]),
     {
         files: ["**/*.{ts,tsx}"],
-        extends: [
-            js.configs.recommended,
-            tseslint.configs.recommended,
-            reactHooks.configs.flat.recommended,
-            reactRefresh.configs.vite,
-        ],
+        extends: [js.configs.recommended, tseslint.configs.recommended, reactRefresh.configs.vite],
+        plugins: { "react-hooks": reactHooks },
+        rules: {
+            "react-hooks/rules-of-hooks": "error",
+            "react-hooks/exhaustive-deps": "error",
+        },
         languageOptions: {
             ecmaVersion: 2020,
             globals: globals.browser,

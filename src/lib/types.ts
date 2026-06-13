@@ -1,4 +1,11 @@
 // Backend DTOs (OpenAPI)
+export type RoleName = "ROLE_USER" | "ROLE_STAFF" | "ROLE_ADMIN";
+
+export type RoleDto = {
+    id: number;
+    name: RoleName;
+};
+
 export type UserDto = {
     id: number;
     username: string;
@@ -7,7 +14,7 @@ export type UserDto = {
     createdAt?: string;
     reviews?: number;
     comments?: number;
-    roles?: { id: number; name: string }[];
+    roles?: RoleDto[];
 };
 
 export type UserPostRequestDto = {
@@ -23,7 +30,7 @@ export type ReviewDto = {
     user: {
         id: number;
         username: string;
-        roles?: { id: number; name: string }[];
+        roles?: RoleDto[];
     };
     createdAt?: string;
     updatedAt?: string;
@@ -41,7 +48,7 @@ export type CommentDto = {
     user: {
         id: number;
         username: string;
-        roles?: { id: number; name: string }[];
+        roles?: RoleDto[];
     };
     score: number;
     commentText: string;
@@ -60,11 +67,8 @@ export type ParkingSpaceDto = {
     osmId: number;
     reviews: number;
     comments: number;
+    avgRating?: number;
     type?: "public" | "private" | "company"; /** "public", "private", or "company" */
-};
-
-export type UserPermissions = {
-    isAdmin: boolean;
 };
 
 // Request DTO for bulk parking space fetch
