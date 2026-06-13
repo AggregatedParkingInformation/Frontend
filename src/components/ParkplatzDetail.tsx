@@ -180,6 +180,8 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
         }
     };
 
+    const parkspaceTags = Object.entries(parkplatz.tags).filter(([key]) => !EXCLUDED_TAGS.has(key));
+
     return (
         <div className="flex flex-col h-full">
             <div className="flex items-start justify-between gap-3 p-5 border-b">
@@ -264,21 +266,19 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                 value={comments.length || parkplatz.anzahlKommentare}
                             />
                         </div>
-                        {parkplatz.tags && Object.keys(parkplatz.tags).length > 0 && (
+                        {parkspaceTags.length > 0 && (
                             <div className="rounded-xl border bg-card p-3">
                                 <div className="text-xs text-muted-foreground mb-2">Tags</div>
 
                                 <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
-                                    {Object.entries(parkplatz.tags)
-                                        .filter(([key]) => !EXCLUDED_TAGS.has(key))
-                                        .map(([key, value]) => (
-                                            <div
-                                                key={key}
-                                                className="flex justify-between gap-3 text-xs">
-                                                <span className="text-muted-foreground truncate">{key}</span>
-                                                <span className="font-medium truncate text-right">{value}</span>
-                                            </div>
-                                        ))}
+                                    {parkspaceTags.map(([key, value]) => (
+                                        <div
+                                            key={key}
+                                            className="flex justify-between gap-3 text-xs">
+                                            <span className="text-muted-foreground truncate">{key}</span>
+                                            <span className="font-medium truncate text-right">{value}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
