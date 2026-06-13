@@ -2,7 +2,7 @@ import { createStore, get as idbGet, set as idbSet, del as idbDel } from "idb-ke
 import type { Parkplatz } from "./types";
 
 const TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days — IndexedDB has plenty of room
-export const TILE = 0.02; // ~2km tile size (degrees)
+export const TILE = 0.08; // ~8km
 
 export type Tile = { x: number; y: number };
 type Entry = { ts: number; data: Parkplatz[] };

@@ -97,6 +97,7 @@ export type Parkplatz = {
     bewertung: number;
     anzahlBewertungen: number;
     anzahlKommentare: number;
+    tags: Record<string, string>;
 };
 
 export type LatLng = { lat: number; lng: number };

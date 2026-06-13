@@ -1,131 +1,79 @@
 import type { Parkplatz } from "./types";
-import { readTile, TILE, tileBbox, tilesForBbox, writeTile, type Tile } from "./osmCache";
+import { readTile, tileBbox, tilesForBbox, writeTile, type Tile } from "./osmCache";
 
-const OVERPASS = import.meta.env.VITE_OVERPASS_URL ?? "https://overpass-api.de/api/interpreter";
-const OVERPASS_MIRRORS = [
-    OVERPASS,
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter",
-];
-
-type OsmElement = {
-    type: "node" | "way" | "relation";
-    id: number;
-    lat?: number;
-    lon?: number;
-    center?: { lat: number; lon: number };
-    tags?: Record<string, string>;
-};
+const API_URL = (import.meta.env.VITE_PARKING_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 export type Bbox = { south: number; west: number; north: number; east: number };
 
-function isHiker(tags: Record<string, string> = {}): boolean {
-    const name = (tags.name ?? "").toLowerCase();
-    return (
-        tags.hiking === "yes" ||
-        tags.access === "hikers" ||
-        tags.parking === "hiker" ||
-        /wander|hiking|trailhead/.test(name)
-    );
-}
+/** Wire format returned by GET /parking/bbox. */
+type ApiParkingSpot = {
+    osm_id: number;
+    name: string;
+    lat: number;
+    lng: number;
+    is_hiker: boolean;
+    region: string;
+    tags: Record<string, string>;
+};
 
-function mapElement(el: OsmElement): Parkplatz | null {
-    const lat = el.lat ?? el.center?.lat;
-    const lng = el.lon ?? el.center?.lon;
-    if (lat == null || lng == null) return null;
-    const tags = el.tags ?? {};
-    if (tags.parking === "lane" || tags.access === "private") return null;
-    const name = tags.name ?? (isHiker(tags) ? "Wanderparkplatz" : "Parkplatz");
-    const region = tags["addr:city"] ?? tags["addr:suburb"] ?? tags.operator ?? "";
+type ApiResponse = {
+    items: ApiParkingSpot[];
+    truncated: boolean;
+};
+
+/** Set when the last bbox response hit the server-side limit. */
+export let lastResponseTruncated = false;
+
+function toParkplatz(s: ApiParkingSpot): Parkplatz {
     return {
-        osmId: el.id,
-        name,
-        lat,
-        lng,
-        istWanderparkplatz: isHiker(tags),
-        region,
+        osmId: s.osm_id,
+        name: s.name,
+        lat: s.lat,
+        lng: s.lng,
+        istWanderparkplatz: s.is_hiker,
+        region: s.region,
+        tags: s.tags,
         bewertung: 0,
         anzahlBewertungen: 0,
         anzahlKommentare: 0,
     };
 }
 
-async function fetchTiles(tiles: Tile[], signal?: AbortSignal): Promise<Map<string, Parkplatz[]>> {
-    // Build one Overpass query union over all missing tile bboxes
-    const parts = tiles
-        .map((t) => {
-            const b = tileBbox(t);
-            return `node["amenity"="parking"](${b.south},${b.west},${b.north},${b.east});way["amenity"="parking"](${b.south},${b.west},${b.north},${b.east});`;
-        })
-        .join("");
-    const q = `[out:json][timeout:25];(${parts});out center tags 500;`;
-
-    let lastErr: unknown = null;
-    let json: { elements: OsmElement[] } | null = null;
-    for (const endpoint of OVERPASS_MIRRORS) {
-        try {
-            const res = await fetch(endpoint, {
-                method: "POST",
-                body: "data=" + encodeURIComponent(q),
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                signal,
-            });
-            if (!res.ok) {
-                lastErr = new Error(`Overpass ${endpoint} → ${res.status}`);
-                continue;
-            }
-            json = (await res.json()) as { elements: OsmElement[] };
-            break;
-        } catch (e) {
-            if (signal?.aborted) throw e;
-            lastErr = e;
-        }
-    }
-    if (!json) throw lastErr ?? new Error("Overpass: alle Mirrors fehlgeschlagen");
-    const items = json.elements.map(mapElement).filter((x): x is Parkplatz => x !== null);
-
-    // Bucket each item into a tile (by lat/lng)
-    const buckets = new Map<string, Parkplatz[]>();
-    for (const t of tiles) buckets.set(`${t.x}_${t.y}`, []);
-    for (const p of items) {
-        const x = Math.floor(p.lng / TILE);
-        const y = Math.floor(p.lat / TILE);
-        const key = `${x}_${y}`;
-        const arr = buckets.get(key);
-        if (arr) arr.push(p);
-    }
-    return buckets;
+async function fetchTile(t: Tile, signal?: AbortSignal): Promise<Parkplatz[]> {
+    const b = tileBbox(t);
+    const url =
+        `${API_URL}/parking/bbox?south=${b.south}&west=${b.west}` + `&north=${b.north}&east=${b.east}&limit=5000`;
+    const res = await fetch(url, { signal });
+    if (!res.ok) throw new Error(`Parking API ${res.status}`);
+    const json = (await res.json()) as ApiResponse;
+    if (json.truncated) lastResponseTruncated = true;
+    return json.items.map(toParkplatz);
 }
 
 export async function fetchParkplaetzeInBbox(b: Bbox, signal?: AbortSignal): Promise<Parkplatz[]> {
+    lastResponseTruncated = false;
     const tiles = tilesForBbox(b);
-    const missing: Tile[] = [];
     const collected: Parkplatz[] = [];
 
     const cachedReads = await Promise.all(tiles.map((t) => readTile(t)));
+    const missing: Tile[] = [];
     tiles.forEach((t, i) => {
         const cached = cachedReads[i];
         if (cached) collected.push(...cached);
         else missing.push(t);
     });
 
-    if (missing.length > 0) {
-        // Cap per request to avoid huge Overpass queries; chunk in batches of 25 tiles
-        const CHUNK = 25;
-        for (let i = 0; i < missing.length; i += CHUNK) {
-            const chunk = missing.slice(i, i + CHUNK);
-            const buckets = await fetchTiles(chunk, signal);
-            await Promise.all(
-                chunk.map(async (t) => {
-                    const data = buckets.get(`${t.x}_${t.y}`) ?? [];
-                    await writeTile(t, data);
-                    collected.push(...data);
-                }),
-            );
-        }
-    }
+    // Fetch all missing tiles in parallel — backend handles each in <100ms.
+    const fetched = await Promise.all(missing.map((t) => fetchTile(t, signal)));
+    await Promise.all(
+        missing.map(async (t, i) => {
+            const data = fetched[i];
+            await writeTile(t, data);
+            collected.push(...data);
+        }),
+    );
 
-    // Dedupe by osmId
+    // Dedupe by osmId (tiles can overlap on borders).
     const seen = new Set<number>();
     return collected.filter((p) => {
         if (seen.has(p.osmId)) return false;
