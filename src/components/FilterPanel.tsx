@@ -53,7 +53,7 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
 
     const pickSuggestion = (p: PlaceSuggestion) => {
         setSuggestOpen(false);
-        setState({ ...state, suche: p.label.split(",")[0] });
+        setState({ ...state, suche: "" }); //clear search input
         onPlaceSelect?.(p);
     };
 
