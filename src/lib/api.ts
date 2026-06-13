@@ -20,7 +20,25 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
             ...(init?.headers ?? {}),
         },
     });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    if (!res.ok) {
+        let msg = "";
+        try {
+            msg = (await res.text()).trim();
+        } catch {
+            /* ignore */
+        }
+        // Try to extract a "message" field from JSON error bodies
+        if (msg.startsWith("{")) {
+            try {
+                const j = JSON.parse(msg);
+                if (typeof j?.message === "string") msg = j.message;
+                else if (typeof j?.error === "string") msg = j.error;
+            } catch {
+                /* keep raw */
+            }
+        }
+        throw new Error(msg || `${res.status} ${res.statusText}`);
+    }
     if (res.status === 204) return undefined as T;
     const txt = await res.text();
     return txt ? (JSON.parse(txt) as T) : (undefined as T);
@@ -37,7 +55,15 @@ export async function springLogin(username: string, password: string): Promise<v
         redirect: "manual",
     });
     if (res.type === "opaqueredirect") return;
-    if (!res.ok) throw new Error(`Login fehlgeschlagen (${res.status})`);
+    if (!res.ok) {
+        let msg = "";
+        try {
+            msg = (await res.text()).trim();
+        } catch {
+            /* ignore */
+        }
+        throw new Error(msg || `Login fehlgeschlagen (${res.status})`);
+    }
 }
 
 /** Logout */

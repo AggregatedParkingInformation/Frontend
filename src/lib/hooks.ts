@@ -1,6 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { fetchParkplaetzeInBbox, type Bbox } from "./osm";
+import { searchPlaces } from "./geocode";
 import type { CommentPostRequest, ParkingSpaceDto, ReviewPostRequest, UserPostRequestDto } from "./types";
 
 export function useOsmParkplaetze(bbox: Bbox | null) {
@@ -18,9 +19,20 @@ export function useParkingSpaces() {
     return useQuery({
         queryKey: ["parkingspaces"],
         queryFn: api.getParkingSpaces,
-        enabled: false, // fetch only when refetch is called
-        staleTime: 1000 * 30,
+        staleTime: 1000 * 60,
         retry: 1,
+    });
+}
+
+/** Place suggestions via Nominatim geocoder. */
+export function usePlaceSuggestions(q: string) {
+    const term = q.trim();
+    return useQuery({
+        queryKey: ["geocode", term],
+        queryFn: ({ signal }) => searchPlaces(term, signal),
+        enabled: term.length >= 2,
+        staleTime: 1000 * 60 * 5,
+        retry: 0,
     });
 }
 
@@ -179,15 +191,6 @@ export function useDeleteUser() {
     return useMutation({
         mutationFn: (id: number) => api.deleteUser(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
-    });
-}
-
-// New hook to fetch the currently logged‑in user
-export function useCurrentUser() {
-    return useQuery({
-        queryKey: ["currentUser"],
-        queryFn: api.getCurrentUser,
-        retry: 1,
     });
 }
 

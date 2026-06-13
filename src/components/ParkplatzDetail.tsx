@@ -32,7 +32,6 @@ import {
     useUpdateReview,
     useSpaceComments,
     useSpaceReviews,
-    useCurrentUser,
     useUpvoteComment,
     useDeleteUpvoteComment,
     useDownvoteComment,
@@ -42,6 +41,7 @@ import {
     useDeleteReview,
     useDeleteComment,
 } from "@/lib/hooks";
+import { useAuthStore } from "@/lib/stores/authStore";
 import { toast } from "sonner";
 
 type Props = {
@@ -68,12 +68,12 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
     const createComment = useCreateComment();
     const updateReview = useUpdateReview();
     const updateComment = useUpdateComment();
-    const currentUser = useCurrentUser();
+    const currentUser = useAuthStore((s) => s.user);
+    const isAdmin = useAuthStore((s) => s.isAdmin);
     const upvoteComment = useUpvoteComment();
     const deleteUpvoteComment = useDeleteUpvoteComment();
     const downvoteComment = useDownvoteComment();
     const deleteDownvoteComment = useDeleteDownvoteComment();
-    const isAdmin = currentUser.data?.roles?.some((r) => r.name === "ROLE_ADMIN");
 
     // admin delete hooks
     const adminDeleteReview = useAdminDeleteReview();
@@ -120,11 +120,11 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
     };
 
     const submitReview = async () => {
-        if (!currentUser.data) {
+        if (!currentUser) {
             toast.error("Bitte einloggen, um eine Bewertung zu schreiben");
             return;
         }
-        const existing = reviews.find((r) => r.user?.id === currentUser.data.id);
+        const existing = reviews.find((r) => r.user?.id === currentUser.id);
         try {
             if (existing) {
                 await updateReview.mutateAsync({
@@ -150,11 +150,11 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
     };
 
     const submitComment = async () => {
-        if (!currentUser.data) {
+        if (!currentUser) {
             toast.error("Bitte einloggen, um einen Kommentar zu schreiben");
             return;
         }
-        const existing = comments.find((c) => c.user?.id === currentUser.data.id);
+        const existing = comments.find((c) => c.user?.id === currentUser.id);
         try {
             if (existing) {
                 await updateComment.mutateAsync({
@@ -284,7 +284,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                         <span className="text-sm font-semibold text-muted-foreground">
                                             {r.user?.username}
                                         </span>
-                                        {(isAdmin || r.user?.id === currentUser.data?.id) && (
+                                        {(isAdmin || r.user?.id === currentUser?.id) && (
                                             <button
                                                 className="text-destructive hover:text-destructive/80"
                                                 onClick={() => handleDeleteClick("review", r.id)}
@@ -315,7 +315,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                             className="text-muted-foreground"
                                         />
                                         <span className="text-sm font-semibold">{k.user?.username}</span>
-                                        {(isAdmin || k.user?.id === currentUser.data?.id) && (
+                                        {(isAdmin || k.user?.id === currentUser?.id) && (
                                             <button
                                                 className="text-destructive hover:text-destructive/80"
                                                 onClick={() => handleDeleteClick("comment", k.id)}

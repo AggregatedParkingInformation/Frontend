@@ -1,10 +1,13 @@
-import { Search, Locate, SlidersHorizontal, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, Locate, SlidersHorizontal, X, MapPin, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { usePlaceSuggestions } from "@/lib/hooks";
+import type { PlaceSuggestion } from "@/lib/geocode";
 
 export type ParkTyp = "alle" | "wandern" | "standard";
 
@@ -28,6 +31,7 @@ type Props = {
     setState: (s: FilterState) => void;
     onShowNearby: () => void;
     onSearch: () => void;
+    onPlaceSelect?: (p: PlaceSuggestion) => void;
     resultCount?: number;
 };
 
@@ -37,7 +41,22 @@ const TYP_OPTIONS: { value: ParkTyp; label: string }[] = [
     { value: "standard", label: "Standard" },
 ];
 
-export function FilterPanel({ state, setState, onShowNearby, onSearch, resultCount }: Props) {
+export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSelect, resultCount }: Props) {
+    const [debounced, setDebounced] = useState(state.suche);
+    const [suggestOpen, setSuggestOpen] = useState(false);
+    useEffect(() => {
+        const t = setTimeout(() => setDebounced(state.suche), 300);
+        return () => clearTimeout(t);
+    }, [state.suche]);
+    const suggestQ = usePlaceSuggestions(suggestOpen ? debounced : "");
+    const suggestions = suggestQ.data ?? [];
+
+    const pickSuggestion = (p: PlaceSuggestion) => {
+        setSuggestOpen(false);
+        setState({ ...state, suche: p.label.split(",")[0] });
+        onPlaceSelect?.(p);
+    };
+
     return (
         <div className="flex flex-col gap-5 p-4">
             <div className="relative">
@@ -46,16 +65,58 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, resultCou
                     className="pl-9 pr-9 h-11 rounded-full bg-muted/60 border-transparent focus-visible:bg-background"
                     placeholder="Ort, Region oder Parkplatz…"
                     value={state.suche}
-                    onChange={(e) => setState({ ...state, suche: e.target.value })}
-                    onKeyDown={(e) => e.key === "Enter" && onSearch()}
+                    onChange={(e) => {
+                        setState({ ...state, suche: e.target.value });
+                        setSuggestOpen(true);
+                    }}
+                    onFocus={() => setSuggestOpen(true)}
+                    onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            if (suggestions[0]) {
+                                pickSuggestion(suggestions[0]);
+                            } else {
+                                onSearch();
+                            }
+                        }
+                        if (e.key === "Escape") setSuggestOpen(false);
+                    }}
                 />
                 {state.suche && (
                     <button
-                        onClick={() => setState({ ...state, suche: "" })}
+                        onClick={() => {
+                            setState({ ...state, suche: "" });
+                            setSuggestOpen(false);
+                        }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         aria-label="Suche löschen">
                         <X className="size-4" />
                     </button>
+                )}
+                {suggestOpen && debounced.trim().length >= 2 && (
+                    <div className="absolute z-[1050] mt-1.5 left-0 right-0 rounded-xl border bg-popover shadow-lg overflow-hidden">
+                        {suggestQ.isFetching && (
+                            <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground">
+                                <Loader2 className="size-3.5 animate-spin" /> Suche Orte…
+                            </div>
+                        )}
+                        {!suggestQ.isFetching && suggestions.length === 0 && (
+                            <div className="px-3 py-2.5 text-xs text-muted-foreground">Keine Orte gefunden</div>
+                        )}
+                        {suggestions.map((p) => (
+                            <button
+                                key={p.id}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => pickSuggestion(p)}
+                                className="w-full text-left px-3 py-2 hover:bg-accent flex items-start gap-2 text-sm border-b last:border-b-0">
+                                <MapPin className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                                <div className="min-w-0">
+                                    <div className="truncate font-medium">{p.label.split(",")[0]}</div>
+                                    <div className="truncate text-[11px] text-muted-foreground">{p.label}</div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
                 )}
             </div>
 

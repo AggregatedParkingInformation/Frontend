@@ -9,20 +9,22 @@ import { AdminPanel } from "./AdminPanel";
 import { springLogout } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import type { UserDto } from "@/lib/types";
+import { useAuthStore } from "@/lib/stores/authStore";
 
 export type AuthUser = UserDto | null;
 
 type Props = {
     open: boolean;
     onOpenChange: (b: boolean) => void;
-    user: AuthUser;
-    setUser: (u: AuthUser) => void;
     initialAuthOpen?: boolean;
     onAuthOpenChange?: (b: boolean) => void;
 };
 
-export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpen, onAuthOpenChange }: Props) {
+export function ProfileSheet({ open, onOpenChange, initialAuthOpen, onAuthOpenChange }: Props) {
     const qc = useQueryClient();
+    const user = useAuthStore((s) => s.user);
+    const clearAuth = useAuthStore((s) => s.clear);
+    const setUser = useAuthStore((s) => s.setUser);
     const [authOpenInner, setAuthOpenInner] = useState(false);
     const authOpen = initialAuthOpen ?? authOpenInner;
     const setAuthOpen = (b: boolean) => {
@@ -108,9 +110,7 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
                                     className="h-11"
                                     onClick={async () => {
                                         await springLogout();
-                                        setUser(null);
-                                        // Immediately clear the cached currentUser so UI updates reflect logout
-                                        qc.setQueryData(["currentUser"], null);
+                                        clearAuth();
                                         qc.invalidateQueries({ queryKey: ["users"] });
                                     }}>
                                     <LogOut /> Abmelden
@@ -149,7 +149,6 @@ export function ProfileSheet({ open, onOpenChange, user, setUser, initialAuthOpe
                 onAuth={(profile) => {
                     setUser(profile);
                     qc.invalidateQueries({ queryKey: ["users"] });
-                    qc.invalidateQueries({ queryKey: ["currentUser"] });
                 }}
             />
             <AdminPanel

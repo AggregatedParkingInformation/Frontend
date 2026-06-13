@@ -5,11 +5,12 @@ import { Map as MapView, type MapHandleApi } from "@/components/Map";
 import { FilterPanel, defaultFilter, type FilterState } from "@/components/FilterPanel";
 import { ParkplatzDetail } from "@/components/ParkplatzDetail";
 import { NearbyListDialog } from "@/components/NearbyListDialog";
-import { ProfileSheet, type AuthUser } from "@/components/ProfileSheet";
+import { ProfileSheet } from "@/components/ProfileSheet";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Toaster } from "sonner";
-import { useAverageStars, useOsmParkplaetze, useParkingSpaces, useCurrentUser } from "@/lib/hooks";
+import { useAverageStars, useOsmParkplaetze, useParkingSpaces } from "@/lib/hooks";
+import { useAuthStore } from "@/lib/stores/authStore";
 import { distanzKm, type LatLng, type Parkplatz } from "@/lib/types";
 import type { Bbox } from "@/lib/osm";
 
@@ -47,19 +48,15 @@ export default function App() {
     const [profileOpen, setProfileOpen] = useState(false);
     const [authOpen, setAuthOpen] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-    const [user, setUser] = useState<AuthUser>(null);
     const [adminPanelOpen, setAdminPanelOpen] = useState(false);
     const isMobile = useIsMobile();
 
-    // fetch current user on init
-    const { data: currentUserData, isFetched } = useCurrentUser();
+    // Load auth once (zustand store)
+    const user = useAuthStore((s) => s.user);
+    const loadAuth = useAuthStore((s) => s.loadOnce);
     useEffect(() => {
-        // Avoid calling setState synchronously inside an effect which can
-        // trigger cascading renders. Schedule the update after paint.
-        if (!isFetched) return;
-        const id = setTimeout(() => setUser(currentUserData ?? null), 0);
-        return () => clearTimeout(id);
-    }, [currentUserData, isFetched]);
+        void loadAuth();
+    }, [loadAuth]);
 
     const setBboxDebounced = useMemo(
         () =>
@@ -123,7 +120,10 @@ export default function App() {
         const list = parkplaetze.filter((p) => {
             if (filter.typ === "wandern" && !p.istWanderparkplatz) return false;
             if (filter.typ === "standard" && p.istWanderparkplatz) return false;
-            if (filter.minSterne > 0 && p.bewertung < filter.minSterne) return false;
+            if (filter.minSterne > 0) {
+                // require a real rating from backend
+                if (!p.anzahlBewertungen || p.bewertung < filter.minSterne) return false;
+            }
             if (term && !`${p.name} ${p.region}`.toLowerCase().includes(term)) return false;
             return true;
         });
@@ -139,6 +139,10 @@ export default function App() {
         setSelected(p);
         mapRef.current?.flyTo(p.lat, p.lng);
         setMobileFilterOpen(false);
+    };
+
+    const handlePlaceSelect = (p: { lat: number; lng: number }) => {
+        mapRef.current?.flyTo(p.lat, p.lng, 14);
     };
 
     const handleLocateMe = () => {
@@ -190,6 +194,7 @@ export default function App() {
                         setState={setFilter}
                         onShowNearby={() => setNearbyOpen(true)}
                         onSearch={() => {}}
+                        onPlaceSelect={handlePlaceSelect}
                         resultCount={filtered.length}
                     />
                 </div>
@@ -231,6 +236,10 @@ export default function App() {
                                 setMobileFilterOpen(false);
                             }}
                             onSearch={() => setMobileFilterOpen(false)}
+                            onPlaceSelect={(p) => {
+                                handlePlaceSelect(p);
+                                setMobileFilterOpen(false);
+                            }}
                             resultCount={filtered.length}
                         />
                     </SheetContent>
@@ -298,8 +307,6 @@ export default function App() {
             <ProfileSheet
                 open={profileOpen}
                 onOpenChange={setProfileOpen}
-                user={user}
-                setUser={setUser}
                 initialAuthOpen={authOpen}
                 onAuthOpenChange={setAuthOpen}
             />

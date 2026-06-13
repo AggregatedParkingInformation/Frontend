@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { api, springLogin } from "@/lib/api";
 import { useRegister } from "@/lib/hooks";
+import { useAuthStore } from "@/lib/stores/authStore";
 import { toast } from "sonner";
 import type { UserDto } from "@/lib/types";
 
@@ -22,7 +23,10 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
     const [regPw, setRegPw] = useState("");
     const [regPw2, setRegPw2] = useState("");
     const [loginBusy, setLoginBusy] = useState(false);
+    const [loginError, setLoginError] = useState<string | null>(null);
+    const [registerError, setRegisterError] = useState<string | null>(null);
     const register = useRegister();
+    const refreshAuth = useAuthStore((s) => s.refresh);
 
     const pwValid = regPw.length >= 8;
     const pwMatch = regPw === regPw2;
@@ -30,35 +34,52 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
 
     const handleLogin = async () => {
         setLoginBusy(true);
+        setLoginError(null);
         try {
             await springLogin(loginUser, loginPw);
 
             try {
                 const profile = await api.getCurrentUser();
+                await refreshAuth();
                 onAuth(profile);
                 onOpenChange(false);
             } catch {
                 // fallback: minimal data
                 const minimalProfile: UserDto = { id: 0, username: loginUser };
+                useAuthStore.getState().setUser(minimalProfile);
                 onAuth(minimalProfile);
                 onOpenChange(false);
             }
         } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Login fehlgeschlagen");
+            const msg = e instanceof Error ? e.message : "Login fehlgeschlagen";
+            setLoginError(msg);
+            toast.error(msg);
         } finally {
             setLoginBusy(false);
         }
     };
 
     const handleRegister = async () => {
+        setRegisterError(null);
         try {
             await register.mutateAsync({ username: regUser, password: regPw });
             toast.success("Konto erstellt");
-            const newProfile: UserDto = { id: 0, username: regUser };
-            onAuth(newProfile);
+            // Automatically log in so we get a session cookie
+            try {
+                await springLogin(regUser, regPw);
+                await refreshAuth();
+                const profile = useAuthStore.getState().user ?? { id: 0, username: regUser };
+                onAuth(profile);
+            } catch {
+                const newProfile: UserDto = { id: 0, username: regUser };
+                useAuthStore.getState().setUser(newProfile);
+                onAuth(newProfile);
+            }
             onOpenChange(false);
-        } catch {
-            toast.error("Registrierung fehlgeschlagen");
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : "Registrierung fehlgeschlagen";
+            setRegisterError(msg);
+            toast.error(msg);
         }
     };
 
@@ -94,6 +115,11 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
                             value={loginPw}
                             onChange={setLoginPw}
                         />
+                        {loginError && (
+                            <p className="text-sm text-destructive rounded-md border border-destructive/30 bg-destructive/5 p-2 whitespace-pre-wrap break-words">
+                                {loginError}
+                            </p>
+                        )}
                         <Button
                             className="w-full h-11"
                             disabled={!loginUser || !loginPw || loginBusy}
@@ -127,6 +153,11 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
                             onChange={setRegPw2}
                             error={regPw2.length > 0 && !pwMatch ? "Passwörter stimmen nicht überein" : null}
                         />
+                        {registerError && (
+                            <p className="text-sm text-destructive rounded-md border border-destructive/30 bg-destructive/5 p-2 whitespace-pre-wrap break-words">
+                                {registerError}
+                            </p>
+                        )}
                         <Button
                             className="w-full h-11"
                             disabled={!regValid || register.isPending}
