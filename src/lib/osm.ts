@@ -24,7 +24,8 @@ type ApiResponse = {
 /** Set when the last bbox response hit the server-side limit. */
 export let lastResponseTruncated = false;
 
-function toParkplatz(s: ApiParkingSpot): Parkplatz {
+function toParkplatz(s: ApiParkingSpot): Parkplatz | null {
+    if (s.tags.bus == "designated") return null;
     return {
         osmId: s.osm_id,
         name: s.name,
@@ -47,7 +48,7 @@ async function fetchTile(t: Tile, signal?: AbortSignal): Promise<Parkplatz[]> {
     if (!res.ok) throw new Error(`Parking API ${res.status}`);
     const json = (await res.json()) as ApiResponse;
     if (json.truncated) lastResponseTruncated = true;
-    return json.items.map(toParkplatz);
+    return json.items.map(toParkplatz).filter((p) => p != null);
 }
 
 export async function fetchParkplaetzeInBbox(b: Bbox, signal?: AbortSignal): Promise<Parkplatz[]> {

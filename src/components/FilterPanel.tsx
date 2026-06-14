@@ -1,21 +1,99 @@
-import { useEffect, useState } from "react";
-import { Search, Locate, SlidersHorizontal, X, MapPin, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+    Search,
+    Locate,
+    SlidersHorizontal,
+    X,
+    MapPin,
+    Loader2,
+    Filter,
+    Star,
+    ArrowUpDown,
+    Mountain,
+    Accessibility,
+    Euro,
+    Lightbulb,
+    Umbrella,
+    Layers,
+    KeyRound,
+    Users,
+    Zap,
+    Bath,
+    Caravan,
+    Truck,
+    ShieldCheck,
+    Timer,
+    BatteryCharging,
+    Train,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { usePlaceSuggestions } from "@/lib/hooks";
 import type { PlaceSuggestion } from "@/lib/geocode";
 
 export type ParkTyp = "alle" | "wandern" | "standard";
 
+export type AdvancedFilter = {
+    fee: "alle" | "kostenlos" | "kostenpflichtig";
+    lit: "alle" | "ja";
+    covered: "alle" | "ja";
+    surface: "alle" | "befestigt" | "unbefestigt";
+    access: "alle" | "oeffentlich" | "kunden" | "privat";
+    disabled: "alle" | "ja";
+    parkingType: "alle" | "oberirdisch" | "tiefgarage" | "parkhaus";
+    minKapazitaet: number;
+    charging: "alle" | "ja";
+    toilets: "alle" | "ja";
+    rvFriendly: "alle" | "ja";
+    truckFriendly: "alle" | "ja";
+    security: "alle" | "kamera" | "bewacht";
+    maxStay: "alle" | "1h" | "2h" | "4h" | "8h" | "24h";
+    evOnly: "alle" | "ja";
+    parkAndRide: "alle" | "ja";
+    maxDistance: number;
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const defaultAdvanced: AdvancedFilter = {
+    fee: "alle",
+    lit: "alle",
+    covered: "alle",
+    surface: "alle",
+    access: "alle",
+    disabled: "alle",
+    parkingType: "alle",
+    minKapazitaet: 0,
+    charging: "alle",
+    toilets: "alle",
+    rvFriendly: "alle",
+    truckFriendly: "alle",
+    security: "alle",
+    maxStay: "alle",
+    evOnly: "alle",
+    parkAndRide: "alle",
+    maxDistance: 0,
+};
+
 export type FilterState = {
     typ: ParkTyp;
     minSterne: number;
     suche: string;
     sortBy: "distanz" | "bewertung" | "name";
+    advanced: AdvancedFilter;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -24,7 +102,16 @@ export const defaultFilter: FilterState = {
     minSterne: 0,
     suche: "",
     sortBy: "distanz",
+    advanced: { ...defaultAdvanced },
 };
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function countActiveAdvanced(a: AdvancedFilter): number {
+    return Object.entries(a).reduce((n, [k, v]) => {
+        if (k === "minKapazitaet" || k === "maxDistance") return n + ((v as number) > 0 ? 1 : 0);
+        return n + (v !== "alle" ? 1 : 0);
+    }, 0);
+}
 
 type Props = {
     state: FilterState;
@@ -44,6 +131,8 @@ const TYP_OPTIONS: { value: ParkTyp; label: string }[] = [
 export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSelect, resultCount }: Props) {
     const [debounced, setDebounced] = useState(state.suche);
     const [suggestOpen, setSuggestOpen] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+    const advancedCount = useMemo(() => countActiveAdvanced(state.advanced), [state.advanced]);
     useEffect(() => {
         const t = setTimeout(() => setDebounced(state.suche), 300);
         return () => clearTimeout(t);
@@ -58,7 +147,7 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
     };
 
     return (
-        <div className="flex flex-col gap-5 p-4">
+        <div className="flex flex-col gap-4 p-4">
             <div className="relative">
                 <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -120,34 +209,35 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                 )}
             </div>
 
-            <div>
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
-                    <SlidersHorizontal className="size-3.5" /> Typ
-                </div>
+            <Section
+                icon={<SlidersHorizontal className="size-3.5" />}
+                title="Typ">
                 <div className="inline-flex rounded-full bg-muted p-1 w-full">
                     {TYP_OPTIONS.map((o) => (
                         <button
                             key={o.value}
                             onClick={() => setState({ ...state, typ: o.value })}
                             className={cn(
-                                "flex-1 text-sm font-medium rounded-full px-3 py-1.5 transition-colors",
+                                "flex-1 text-sm font-medium rounded-full px-3 py-1.5 transition-colors flex items-center justify-center gap-1.5",
                                 state.typ === o.value
                                     ? "bg-background shadow-sm text-foreground"
                                     : "text-muted-foreground hover:text-foreground",
                             )}>
+                            {o.value === "wandern" && <Mountain className="size-3.5" />}
                             {o.label}
                         </button>
                     ))}
                 </div>
-            </div>
+            </Section>
 
-            <div>
-                <div className="flex items-center justify-between mb-2">
-                    <Label className="text-xs font-medium text-muted-foreground">Mindest-Bewertung</Label>
-                    <span className="text-xs font-semibold tabular-nums">
-                        {state.minSterne === 0 ? "Alle" : `${state.minSterne}+ Sterne`}
+            <Section
+                icon={<Star className="size-3.5" />}
+                title="Mindest-Bewertung"
+                trailing={
+                    <span className="text-xs font-semibold tabular-nums text-foreground">
+                        {state.minSterne === 0 ? "Alle" : `${state.minSterne}+`}
                     </span>
-                </div>
+                }>
                 <div className="flex gap-1.5">
                     {[0, 1, 2, 3, 4, 5].map((n) => (
                         <button
@@ -156,17 +246,18 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                             className={cn(
                                 "flex-1 h-9 rounded-lg text-sm font-medium border transition-colors",
                                 state.minSterne === n
-                                    ? "bg-[hsl(var(--brand))] text-[hsl(var(--brand-foreground))] border-transparent"
+                                    ? "bg-[hsl(var(--brand))] text-[hsl(var(--brand-foreground))] border-transparent shadow-sm"
                                     : "bg-background hover:bg-muted border-border",
                             )}>
                             {n === 0 ? "·" : n}
                         </button>
                     ))}
                 </div>
-            </div>
+            </Section>
 
-            <div>
-                <Label className="text-xs font-medium text-muted-foreground mb-2 block">Sortieren nach</Label>
+            <Section
+                icon={<ArrowUpDown className="size-3.5" />}
+                title="Sortieren nach">
                 <Select
                     value={state.sortBy}
                     onValueChange={(v) =>
@@ -175,7 +266,7 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                             sortBy: v as FilterState["sortBy"],
                         })
                     }>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full h-10 rounded-lg">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -184,22 +275,407 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                         <SelectItem value="name">Name</SelectItem>
                     </SelectContent>
                 </Select>
-            </div>
+            </Section>
 
             <Separator />
 
-            <Button
-                variant="secondary"
-                onClick={onShowNearby}
-                className="w-full h-11 rounded-full">
-                <Locate /> Nächstgelegene anzeigen
-            </Button>
+            <div className="flex flex-col gap-2">
+                <Button
+                    variant="secondary"
+                    onClick={onShowNearby}
+                    className="h-11 rounded-xl w-full">
+                    <Locate /> Nächste Parkplätze
+                </Button>
+                <Button
+                    variant={advancedCount > 0 ? "default" : "outline"}
+                    onClick={() => setAdvancedOpen(true)}
+                    className="h-11 rounded-xl w-full">
+                    <Filter /> Filter
+                    {advancedCount > 0 && (
+                        <Badge
+                            variant="secondary"
+                            className="ml-1.5 h-5 px-1.5 bg-background/20 text-current">
+                            {advancedCount}
+                        </Badge>
+                    )}
+                </Button>
+            </div>
+
+            {advancedCount > 0 && (
+                <button
+                    onClick={() => setState({ ...state, advanced: { ...defaultAdvanced } })}
+                    className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center justify-center gap-1 -mt-1">
+                    <X className="size-3" /> Erweiterte Filter zurücksetzen
+                </button>
+            )}
 
             {resultCount != null && (
-                <div className="text-xs text-muted-foreground text-center -mt-1">
+                <div className="text-xs text-muted-foreground text-center">
                     {resultCount} Parkplätze in der Kartenansicht
                 </div>
             )}
+
+            <AdvancedFilterDialog
+                open={advancedOpen}
+                onOpenChange={setAdvancedOpen}
+                value={state.advanced}
+                onChange={(adv) => setState({ ...state, advanced: adv })}
+            />
         </div>
+    );
+}
+
+function Section({
+    icon,
+    title,
+    trailing,
+    children,
+}: {
+    icon: React.ReactNode;
+    title: string;
+    trailing?: React.ReactNode;
+    children: React.ReactNode;
+}) {
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {icon}
+                    {title}
+                </div>
+                {trailing}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+type AdvancedDialogProps = {
+    open: boolean;
+    onOpenChange: (b: boolean) => void;
+    value: AdvancedFilter;
+    onChange: (a: AdvancedFilter) => void;
+};
+
+function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedDialogProps) {
+    const set = <K extends keyof AdvancedFilter>(k: K, v: AdvancedFilter[K]) => onChange({ ...value, [k]: v });
+    const activeCount = countActiveAdvanced(value);
+    return (
+        <Dialog
+            open={open}
+            onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-xl p-0 gap-0 overflow-hidden">
+                <DialogHeader className="p-5 pb-4 border-b">
+                    <DialogTitle className="flex items-center gap-2">
+                        <Filter className="size-4" /> Erweiterte Filter
+                        {activeCount > 0 && (
+                            <Badge className="bg-[hsl(var(--brand))] text-[hsl(var(--brand-foreground))] hover:bg-[hsl(var(--brand))]">
+                                {activeCount} aktiv
+                            </Badge>
+                        )}
+                    </DialogTitle>
+                    <DialogDescription>Verfeinere die Ergebnisse nach Tags und Eigenschaften</DialogDescription>
+                </DialogHeader>
+                <div className="p-5 grid sm:grid-cols-3 gap-2 max-h-[65vh] overflow-y-auto">
+                    <div className="col-span-full">
+                        <div className="flex gap-2">
+                            <div className="w-full">
+                                <AdvField
+                                    icon={<Locate className="size-3.5" />}
+                                    label="Max. Entfernung"
+                                    trailing={
+                                        <span className="text-xs font-semibold tabular-nums">
+                                            {value.maxDistance === 0 ? "Alle" : `≤ ${value.maxDistance} km`}
+                                        </span>
+                                    }>
+                                    <Slider
+                                        value={[value.maxDistance]}
+                                        onValueChange={(vals: number[]) => set("maxDistance", vals[0])}
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                    />
+                                </AdvField>
+                            </div>
+                            <div className="w-full">
+                                <AdvField
+                                    icon={<Users className="size-3.5" />}
+                                    label="Mindestkapazität"
+                                    trailing={
+                                        <span className="text-xs font-semibold tabular-nums">
+                                            {value.minKapazitaet === 0 ? "Alle" : `${value.minKapazitaet}+`}
+                                        </span>
+                                    }>
+                                    <Slider
+                                        value={[value.minKapazitaet]}
+                                        onValueChange={(vals: number[]) => set("minKapazitaet", vals[0])}
+                                        min={0}
+                                        max={100}
+                                        step={5}
+                                    />
+                                </AdvField>
+                            </div>
+                        </div>
+                    </div>
+                    <AdvField
+                        icon={<Euro className="size-3.5" />}
+                        label="Gebühr">
+                        <Select
+                            value={value.fee}
+                            onValueChange={(v) => set("fee", v as AdvancedFilter["fee"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="kostenlos">Kostenlos</SelectItem>
+                                <SelectItem value="kostenpflichtig">Kostenpflichtig</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <AdvField
+                        icon={<KeyRound className="size-3.5" />}
+                        label="Zugang">
+                        <Select
+                            value={value.access}
+                            onValueChange={(v) => set("access", v as AdvancedFilter["access"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="oeffentlich">Öffentlich</SelectItem>
+                                <SelectItem value="kunden">Kunden</SelectItem>
+                                <SelectItem value="privat">Privat</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <AdvField
+                        icon={<Layers className="size-3.5" />}
+                        label="Oberfläche">
+                        <Select
+                            value={value.surface}
+                            onValueChange={(v) => set("surface", v as AdvancedFilter["surface"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="befestigt">Befestigt</SelectItem>
+                                <SelectItem value="unbefestigt">Unbefestigt</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <AdvField
+                        icon={<MapPin className="size-3.5" />}
+                        label="Parkplatzart">
+                        <Select
+                            value={value.parkingType}
+                            onValueChange={(v) => set("parkingType", v as AdvancedFilter["parkingType"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="oberirdisch">Oberirdisch</SelectItem>
+                                <SelectItem value="tiefgarage">Tiefgarage</SelectItem>
+                                <SelectItem value="parkhaus">Parkhaus</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <AdvField
+                        icon={<Lightbulb className="size-3.5" />}
+                        label="Beleuchtung">
+                        <Select
+                            value={value.lit}
+                            onValueChange={(v) => set("lit", v as AdvancedFilter["lit"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="ja">Beleuchtet</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <AdvField
+                        icon={<Umbrella className="size-3.5" />}
+                        label="Überdachung">
+                        <Select
+                            value={value.covered}
+                            onValueChange={(v) => set("covered", v as AdvancedFilter["covered"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="ja">Überdacht</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <AdvField
+                        icon={<Accessibility className="size-3.5" />}
+                        label="Behindertenparkplatz">
+                        <Select
+                            value={value.disabled}
+                            onValueChange={(v) => set("disabled", v as AdvancedFilter["disabled"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="ja">Vorhanden</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <YesNoField
+                        icon={<Zap className="size-3.5" />}
+                        label="Ladesäule"
+                        k="charging"
+                        value={value}
+                        set={set}
+                    />
+                    <YesNoField
+                        icon={<Bath className="size-3.5" />}
+                        label="Toiletten"
+                        k="toilets"
+                        value={value}
+                        set={set}
+                    />
+                    <YesNoField
+                        icon={<Caravan className="size-3.5" />}
+                        label="Wohnmobil-tauglich"
+                        k="rvFriendly"
+                        value={value}
+                        set={set}
+                    />
+                    <YesNoField
+                        icon={<Truck className="size-3.5" />}
+                        label="LKW-tauglich"
+                        k="truckFriendly"
+                        value={value}
+                        set={set}
+                    />
+                    <AdvField
+                        icon={<ShieldCheck className="size-3.5" />}
+                        label="Sicherheit">
+                        <Select
+                            value={value.security}
+                            onValueChange={(v: string) => set("security", v as AdvancedFilter["security"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="kamera">Kameraüberwacht</SelectItem>
+                                <SelectItem value="bewacht">Bewacht</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <AdvField
+                        icon={<Timer className="size-3.5" />}
+                        label="Max. Parkdauer">
+                        <Select
+                            value={value.maxStay}
+                            onValueChange={(v: string) => set("maxStay", v as AdvancedFilter["maxStay"])}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="1h">≥ 1 Stunde</SelectItem>
+                                <SelectItem value="2h">≥ 2 Stunden</SelectItem>
+                                <SelectItem value="4h">≥ 4 Stunden</SelectItem>
+                                <SelectItem value="8h">≥ 8 Stunden</SelectItem>
+                                <SelectItem value="24h">≥ 24 Stunden</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </AdvField>
+                    <YesNoField
+                        icon={<BatteryCharging className="size-3.5" />}
+                        label="Nur E-Fahrzeuge"
+                        k="evOnly"
+                        value={value}
+                        set={set}
+                    />
+                    <YesNoField
+                        icon={<Train className="size-3.5" />}
+                        label="Park & Ride"
+                        k="parkAndRide"
+                        value={value}
+                        set={set}
+                    />
+                </div>
+                <DialogFooter className="!mx-0 !mb-0 rounded-none border-t p-4">
+                    <Button
+                        variant="ghost"
+                        onClick={() => onChange({ ...defaultAdvanced })}>
+                        <X /> Zurücksetzen
+                    </Button>
+                    <Button onClick={() => onOpenChange(false)}>Übernehmen</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function AdvField({
+    label,
+    icon,
+    trailing,
+    children,
+}: {
+    label: string;
+    icon?: React.ReactNode;
+    trailing?: React.ReactNode;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="rounded-xl border bg-card/50 p-3">
+            <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    {icon}
+                    {label}
+                </Label>
+                {trailing}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+type YesNoKeys = {
+    [K in keyof AdvancedFilter]: AdvancedFilter[K] extends "alle" | "ja" ? K : never;
+}[keyof AdvancedFilter];
+
+function YesNoField<K extends YesNoKeys>({
+    icon,
+    label,
+    k,
+    value,
+    set,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    k: K;
+    value: AdvancedFilter;
+    set: <KK extends keyof AdvancedFilter>(k: KK, v: AdvancedFilter[KK]) => void;
+}) {
+    return (
+        <AdvField
+            icon={icon}
+            label={label}>
+            <Select
+                value={value[k] as string}
+                onValueChange={(v: string) => set(k, v as AdvancedFilter[K])}>
+                <SelectTrigger>
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="alle">Alle</SelectItem>
+                    <SelectItem value="ja">Ja</SelectItem>
+                </SelectContent>
+            </Select>
+        </AdvField>
     );
 }

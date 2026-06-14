@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Locate, Menu, User, ZoomIn } from "lucide-react";
 import { AdminPanel } from "@/components/AdminPanel";
 import { Map as MapView, type MapHandleApi } from "@/components/Map";
-import { FilterPanel, defaultFilter, type FilterState } from "@/components/FilterPanel";
+import { FilterPanel, defaultFilter, type AdvancedFilter, type FilterState } from "@/components/FilterPanel";
 import { ParkplatzDetail } from "@/components/ParkplatzDetail";
 import { NearbyListDialog } from "@/components/NearbyListDialog";
 import { ProfileSheet } from "@/components/ProfileSheet";
@@ -71,6 +71,10 @@ export default function App() {
                 if (!p.anzahlBewertungen || p.bewertung < filter.minSterne) return false;
             }
             if (term && !`${p.name} ${p.region}`.toLowerCase().includes(term)) return false;
+            if (!matchesAdvanced(p.tags, filter.advanced)) return false;
+            if (filter.advanced.maxDistance > 0) {
+                if (distanzKm(referenz, p) > filter.advanced.maxDistance) return false;
+            }
             return true;
         });
         list.sort((a, b) => {
@@ -158,10 +162,10 @@ export default function App() {
                         </>
                     ) : loading ? (
                         <>
-                            <Loader2 className="size-3 animate-spin" /> Lade OpenStreetMap…
+                            <Loader2 className="size-3 animate-spin" /> Lade Daten…
                         </>
                     ) : (
-                        <>Daten via OpenStreetMap</>
+                        <>Daten wurden geladen</>
                     )}
                 </div>
             </aside>
@@ -275,6 +279,7 @@ export default function App() {
                 referenzLabel={userPos ? "deinem Standort" : "der Kartenmitte"}
                 selectedId={selected?.osmId ?? null}
                 onSelect={handleListSelect}
+                sortBy={filter.sortBy}
             />
             <AdminPanel
                 open={adminPanelOpen}
@@ -287,4 +292,104 @@ export default function App() {
             />
         </div>
     );
+}
+
+const PAVED = new Set([
+    "paved",
+    "asphalt",
+    "concrete",
+    "concrete:plates",
+    "concrete:lanes",
+    "paving_stones",
+    "sett",
+    "cobblestone",
+    "compacted",
+    "metal",
+]);
+const UNPAVED = new Set([
+    "unpaved",
+    "gravel",
+    "fine_gravel",
+    "ground",
+    "dirt",
+    "earth",
+    "grass",
+    "sand",
+    "mud",
+    "pebblestone",
+    "wood",
+]);
+
+function matchesAdvanced(tags: Record<string, string>, a: AdvancedFilter): boolean {
+    if (a.fee !== "alle") {
+        const fee = tags.fee;
+        if (a.fee === "kostenlos" && fee !== "no") return false;
+        if (a.fee === "kostenpflichtig" && fee !== "yes") return false;
+    }
+    if (a.lit === "ja" && tags.lit !== "yes") return false;
+    if (a.covered === "ja" && tags.covered !== "yes") return false;
+    if (a.surface !== "alle") {
+        const s = tags.surface;
+        if (!s) return false;
+        if (a.surface === "befestigt" && !PAVED.has(s)) return false;
+        if (a.surface === "unbefestigt" && !UNPAVED.has(s)) return false;
+    }
+    if (a.access !== "alle") {
+        const ac = tags.access ?? "";
+        if (a.access === "oeffentlich" && !(ac === "" || ac === "yes" || ac === "permissive" || ac === "public"))
+            return false;
+        if (a.access === "kunden" && ac !== "customers") return false;
+        if (a.access === "privat" && !(ac === "private" || ac === "no")) return false;
+    }
+    if (a.disabled === "ja") {
+        const cd = tags["capacity:disabled"];
+        if (!cd || cd === "no" || cd === "0") return false;
+    }
+    if (a.parkingType !== "alle") {
+        const pt = tags.parking ?? "";
+        if (a.parkingType === "tiefgarage" && pt !== "underground") return false;
+        if (a.parkingType === "parkhaus" && !(pt === "multi-storey" || pt === "multi_storey" || pt === "rooftop"))
+            return false;
+        if (
+            a.parkingType === "oberirdisch" &&
+            !(pt === "" || pt === "surface" || pt === "street_side" || pt === "lane" || pt === "layby")
+        )
+            return false;
+    }
+    if (a.minKapazitaet > 0) {
+        const cap = Number(tags.capacity);
+        if (!Number.isFinite(cap) || cap < a.minKapazitaet) return false;
+    }
+    if (a.charging === "ja") {
+        const cc = tags["capacity:charging"];
+        const ccNum = Number(cc);
+        if (!(tags.charging === "yes" || tags.amenity === "charging_station" || (Number.isFinite(ccNum) && ccNum > 0))) return false;
+    }
+    if (a.toilets === "ja" && !(tags.toilets === "yes" || tags["toilets:access"])) return false;
+    if (a.rvFriendly === "ja" && !(tags.caravans === "yes" || tags.motorhome === "yes" || tags["caravan"] === "yes")) return false;
+    if (a.truckFriendly === "ja" && !(tags.hgv === "yes" || tags.truck === "yes")) return false;
+    if (a.security === "kamera" && !(tags.surveillance === "camera" || tags["surveillance:type"] === "camera")) return false;
+    if (a.security === "bewacht" && tags.supervised !== "yes") return false;
+    if (a.maxStay !== "alle") {
+        const ms = tags.maxstay;
+        if (!ms) return false;
+        const hours = parseMaxStayHours(ms);
+        const need = Number(a.maxStay.replace("h", ""));
+        if (!Number.isFinite(hours) || hours < need) return false;
+    }
+    if (a.evOnly === "ja" && !(tags["access:electric_vehicle"] === "only" || tags["motor_vehicle:electric"] === "only" || tags.ev_only === "yes")) return false;
+    if (a.parkAndRide === "ja" && !(tags["park_ride"] === "yes" || tags.park_ride === "bus" || tags.park_ride === "train")) return false;
+    return true;
+}
+
+function parseMaxStayHours(s: string): number {
+    const v = s.trim().toLowerCase();
+    if (v === "unlimited" || v === "no") return Infinity;
+    const m = v.match(/^(\d+(?:\.\d+)?)\s*(min|minutes?|h|hours?|d|days?)?$/);
+    if (!m) return NaN;
+    const num = Number(m[1]);
+    const unit = m[2] ?? "h";
+    if (unit.startsWith("min")) return num / 60;
+    if (unit.startsWith("d")) return num * 24;
+    return num;
 }

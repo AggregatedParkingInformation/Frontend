@@ -1,9 +1,11 @@
-import { MapPin, Mountain, Star } from "lucide-react";
+import { useMemo, useState } from "react";
+import { MapPin, Mountain, Search, Star, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { distanzKm, type LatLng, type Parkplatz } from "@/lib/types";
+import type { FilterState } from "./FilterPanel";
 
 type Props = {
     open: boolean;
@@ -13,6 +15,7 @@ type Props = {
     referenzLabel: string;
     selectedId: number | null;
     onSelect: (p: Parkplatz) => void;
+    sortBy?: FilterState["sortBy"];
 };
 
 export function NearbyListDialog({
@@ -23,11 +26,27 @@ export function NearbyListDialog({
     referenzLabel,
     selectedId,
     onSelect,
+    sortBy = "distanz",
 }: Props) {
-    const sorted = [...parkplaetze]
-        .map((p) => ({ p, d: distanzKm(referenz, p) }))
-        .sort((a, b) => a.d - b.d)
-        .slice(0, 30);
+    const [search, setSearch] = useState("");
+
+    const sorted = useMemo(() => {
+        const term = search.trim().toLowerCase();
+        const list = parkplaetze
+            .filter((p) => {
+                if (!term) return true;
+                return `${p.name} ${p.region}`.toLowerCase().includes(term);
+            })
+            .map((p) => ({ p, d: distanzKm(referenz, p) }));
+        list.sort((a, b) => {
+            if (sortBy === "bewertung") return b.p.bewertung - a.p.bewertung;
+            if (sortBy === "name") return a.p.name.localeCompare(b.p.name);
+            return a.d - b.d;
+        });
+        return list.slice(0, 50);
+    }, [parkplaetze, referenz, search, sortBy]);
+
+    const sortLabel = sortBy === "bewertung" ? "Bewertung" : sortBy === "name" ? "Name" : "Entfernung";
 
     return (
         <Dialog
@@ -36,13 +55,34 @@ export function NearbyListDialog({
             <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
                 <DialogHeader className="p-5 pb-3 border-b">
                     <DialogTitle className="font-heading">Nächstgelegene Parkplätze</DialogTitle>
-                    <DialogDescription>In der Nähe von {referenzLabel}</DialogDescription>
+                    <DialogDescription>
+                        In der Nähe von {referenzLabel} · sortiert nach {sortLabel}
+                    </DialogDescription>
+                    <div className="relative mt-3">
+                        <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Parkplatz suchen…"
+                            className="pl-9 pr-9 h-10 rounded-full bg-muted/60 border-transparent focus-visible:bg-background"
+                        />
+                        {search && (
+                            <button
+                                onClick={() => setSearch("")}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                aria-label="Suche löschen">
+                                <X className="size-4" />
+                            </button>
+                        )}
+                    </div>
                 </DialogHeader>
-                <ScrollArea className="max-h-[65vh]">
+                <div className="max-h-[65vh] overflow-y-auto overflow-x-hidden">
                     <div className="p-2">
                         {sorted.length === 0 && (
                             <div className="p-8 text-center text-sm text-muted-foreground">
-                                Keine Parkplätze im aktuellen Kartenausschnitt. Karte verschieben und erneut versuchen.
+                                {search
+                                    ? "Keine Parkplätze gefunden, die zur Suche passen."
+                                    : "Keine Parkplätze im aktuellen Kartenausschnitt. Karte verschieben und erneut versuchen."}
                             </div>
                         )}
                         {sorted.map(({ p, d }) => {
@@ -55,7 +95,7 @@ export function NearbyListDialog({
                                         onOpenChange(false);
                                     }}
                                     className={cn(
-                                        "w-full text-left flex items-center gap-3 p-3 rounded-xl transition-colors",
+                                        "w-full text-left flex items-center gap-3 p-3 rounded-xl transition-colors min-w-0 overflow-hidden",
                                         "hover:bg-muted/70",
                                         active && "ring-2 ring-[hsl(var(--brand))] bg-muted/50",
                                     )}>
@@ -72,9 +112,9 @@ export function NearbyListDialog({
                                             <MapPin className="size-4" />
                                         )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium truncate">{p.name}</span>
+                                    <div className="flex-1 min-w-0 overflow-hidden">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="font-medium truncate min-w-0 flex-1">{p.name}</span>
                                             {p.istWanderparkplatz && (
                                                 <Badge
                                                     variant="secondary"
@@ -83,25 +123,25 @@ export function NearbyListDialog({
                                                 </Badge>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                                        <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
                                             {p.bewertung > 0 ? (
-                                                <span className="inline-flex items-center gap-1">
+                                                <span className="inline-flex items-center gap-1 shrink-0">
                                                     <Star className="size-3 fill-[hsl(var(--rating))] text-[hsl(var(--rating))]" />
                                                     {p.bewertung.toFixed(1)}
                                                 </span>
                                             ) : (
-                                                <span>Keine Bewertung</span>
+                                                <span className="shrink-0">Keine Bewertung</span>
                                             )}
                                             {p.region && (
                                                 <>
-                                                    <span>·</span>
-                                                    <span className="truncate">{p.region}</span>
+                                                    <span className="shrink-0">·</span>
+                                                    <span className="truncate min-w-0 flex-1">{p.region}</span>
                                                 </>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="text-right shrink-0">
-                                        <div className="text-sm font-semibold tabular-nums text-[hsl(var(--brand))]">
+                                    <div className="text-right shrink-0 ml-1">
+                                        <div className="text-sm font-semibold tabular-nums text-[hsl(var(--brand))] whitespace-nowrap">
                                             {d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`}
                                         </div>
                                     </div>
@@ -109,7 +149,7 @@ export function NearbyListDialog({
                             );
                         })}
                     </div>
-                </ScrollArea>
+                </div>
             </DialogContent>
         </Dialog>
     );

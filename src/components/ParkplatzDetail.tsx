@@ -267,16 +267,20 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                             />
                         </div>
                         {parkspaceTags.length > 0 && (
-                            <div className="rounded-xl border bg-card p-3">
+                            <div className="rounded-xl border bg-card p-3 min-w-0 overflow-hidden">
                                 <div className="text-xs text-muted-foreground mb-2">Tags</div>
 
-                                <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
+                                <div className="flex flex-col gap-1 max-h-40 overflow-y-auto overflow-x-hidden pr-1 min-w-0">
                                     {parkspaceTags.map(([key, value]) => (
                                         <div
                                             key={key}
-                                            className="flex justify-between gap-3 text-xs">
-                                            <span className="text-muted-foreground truncate">{key}</span>
-                                            <span className="font-medium truncate text-right">{value}</span>
+                                            className="flex items-start gap-3 text-xs min-w-0 w-full">
+                                            <span className="text-muted-foreground truncate min-w-0 flex-1">
+                                                {key}
+                                            </span>
+                                            <span className="font-medium min-w-0 flex-1 text-right break-all">
+                                                {value}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
