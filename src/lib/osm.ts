@@ -10,19 +10,12 @@ type ApiParkingSpot = {
     osm_id: number;
     name: string;
     lat: number;
-    lng: number;
+    lon: number;
     is_hiker: boolean;
-    region: string;
     tags: Record<string, string>;
 };
 
-type ApiResponse = {
-    items: ApiParkingSpot[];
-    truncated: boolean;
-};
-
-/** Set when the last bbox response hit the server-side limit. */
-export let lastResponseTruncated = false;
+type ApiResponse = ApiParkingSpot[];
 
 function toParkplatz(s: ApiParkingSpot): Parkplatz | null {
     if (s.tags.bus == "designated") return null;
@@ -30,9 +23,9 @@ function toParkplatz(s: ApiParkingSpot): Parkplatz | null {
         osmId: s.osm_id,
         name: s.name,
         lat: s.lat,
-        lng: s.lng,
-        istWanderparkplatz: s.is_hiker,
-        region: s.region,
+        lng: s.lon,
+        istWanderparkplatz: s.tags.hiking == "yes",
+        region: s.tags["addr:city"] ?? "",
         tags: s.tags,
         bewertung: 0,
         anzahlBewertungen: 0,
@@ -43,16 +36,14 @@ function toParkplatz(s: ApiParkingSpot): Parkplatz | null {
 async function fetchTile(t: Tile, signal?: AbortSignal): Promise<Parkplatz[]> {
     const b = tileBbox(t);
     const url =
-        `${API_URL}/parking/bbox?south=${b.south}&west=${b.west}` + `&north=${b.north}&east=${b.east}&limit=5000`;
+        `${API_URL}/parking?min_lat=${b.south}&min_lon=${b.west}` + `&max_lat=${b.north}&max_lon=${b.east}&limit=5000`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`Parking API ${res.status}`);
     const json = (await res.json()) as ApiResponse;
-    if (json.truncated) lastResponseTruncated = true;
-    return json.items.map(toParkplatz).filter((p) => p != null);
+    return json.map(toParkplatz).filter((p) => p != null);
 }
 
 export async function fetchParkplaetzeInBbox(b: Bbox, signal?: AbortSignal): Promise<Parkplatz[]> {
-    lastResponseTruncated = false;
     const tiles = tilesForBbox(b);
     const collected: Parkplatz[] = [];
 
