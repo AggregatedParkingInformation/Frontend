@@ -1,10 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import {
-    QueryClient,
-    QueryClientProvider,
-} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("./api", () => ({
     api: {
@@ -35,16 +32,8 @@ function createWrapper() {
         },
     });
 
-    return function Wrapper({
-        children,
-    }: {
-        children: React.ReactNode;
-    }) {
-        return (
-            <QueryClientProvider client={queryClient}>
-                {children}
-            </QueryClientProvider>
-        );
+    return function Wrapper({ children }: { children: React.ReactNode }) {
+        return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
     };
 }
 
@@ -54,12 +43,9 @@ describe("usePlaceSuggestions", () => {
     });
 
     it("no search with less than 2 characters", () => {
-        renderHook(
-            () => usePlaceSuggestions("a"),
-            {
-                wrapper: createWrapper(),
-            }
-        );
+        renderHook(() => usePlaceSuggestions("a"), {
+            wrapper: createWrapper(),
+        });
 
         expect(searchPlaces).not.toHaveBeenCalled();
     });
@@ -67,12 +53,9 @@ describe("usePlaceSuggestions", () => {
     it("performs search with 2 or more characters", async () => {
         vi.mocked(searchPlaces).mockResolvedValue([]);
 
-        renderHook(
-            () => usePlaceSuggestions("mün"),
-            {
-                wrapper: createWrapper(),
-            }
-        );
+        renderHook(() => usePlaceSuggestions("mün"), {
+            wrapper: createWrapper(),
+        });
 
         await waitFor(() => {
             expect(searchPlaces).toHaveBeenCalled();
@@ -82,18 +65,12 @@ describe("usePlaceSuggestions", () => {
     it("trims whitespace before searching", async () => {
         vi.mocked(searchPlaces).mockResolvedValue([]);
 
-        renderHook(
-            () => usePlaceSuggestions("   mün   "),
-            {
-                wrapper: createWrapper(),
-            }
-        );
+        renderHook(() => usePlaceSuggestions("   mün   "), {
+            wrapper: createWrapper(),
+        });
 
         await waitFor(() => {
-            expect(searchPlaces).toHaveBeenCalledWith(
-                "mün",
-                expect.any(AbortSignal)
-            );
+            expect(searchPlaces).toHaveBeenCalledWith("mün", expect.any(AbortSignal));
         });
     });
 });
@@ -106,12 +83,9 @@ describe("useCreateComment", () => {
     it("calls api.createComment", async () => {
         vi.mocked(api.createComment).mockResolvedValue(undefined);
 
-        const { result } = renderHook(
-            () => useCreateComment(),
-            {
-                wrapper: createWrapper(),
-            }
-        );
+        const { result } = renderHook(() => useCreateComment(), {
+            wrapper: createWrapper(),
+        });
 
         const body: CommentPostRequest = {
             osmId: 123,

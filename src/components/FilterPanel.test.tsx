@@ -8,113 +8,111 @@ import type { FilterState } from "./FilterPanel";
 // Mocks
 // ----------------------
 vi.mock("@/lib/hooks", () => ({
-  usePlaceSuggestions: () => ({
-    data: [
-      { id: "1", label: "Munich, Germany" },
-      { id: "2", label: "Berlin, Germany" },
-    ],
-    isFetching: false,
-  }),
+    usePlaceSuggestions: () => ({
+        data: [
+            { id: "1", label: "Munich, Germany" },
+            { id: "2", label: "Berlin, Germany" },
+        ],
+        isFetching: false,
+    }),
 }));
 
 vi.mock("@/lib/utils", () => ({
-  cn: (...args: any[]) => args.filter(Boolean).join(" "),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cn: (...args: any[]) => args.filter(Boolean).join(" "),
 }));
 
 // ----------------------
 // Helpers
 // ----------------------
 const baseState: FilterState = {
-  ...defaultFilter,
+    ...defaultFilter,
 };
 
 const renderPanel = (override?: Partial<FilterState>) => {
-  const setState = vi.fn();
-  const onSearch = vi.fn();
-  const onShowNearby = vi.fn();
-  const onPlaceSelect = vi.fn();
+    const setState = vi.fn();
+    const onSearch = vi.fn();
+    const onShowNearby = vi.fn();
+    const onPlaceSelect = vi.fn();
 
-  const state = { ...baseState, ...override };
+    const state = { ...baseState, ...override };
 
-  render(
-    <FilterPanel
-      state={state}
-      setState={setState}
-      onSearch={onSearch}
-      onShowNearby={onShowNearby}
-      onPlaceSelect={onPlaceSelect}
-    />
-  );
+    render(
+        <FilterPanel
+            state={state}
+            setState={setState}
+            onSearch={onSearch}
+            onShowNearby={onShowNearby}
+            onPlaceSelect={onPlaceSelect}
+        />,
+    );
 
-  return { setState, onSearch, onShowNearby, onPlaceSelect };
+    return { setState, onSearch, onShowNearby, onPlaceSelect };
 };
 
 // ----------------------
 // Tests
 // ----------------------
 describe("FilterPanel", () => {
-  test("renders search input", () => {
-    renderPanel();
-    expect(screen.getByPlaceholderText(/Ort, Region/i)).toBeInTheDocument();
-  });
+    test("renders search input", () => {
+        renderPanel();
+        expect(screen.getByPlaceholderText(/Ort, Region/i)).toBeInTheDocument();
+    });
 
-  test("updates search input", async () => {
-    const user = userEvent.setup();
-    const { setState } = renderPanel();
+    test("updates search input", async () => {
+        const user = userEvent.setup();
+        const { setState } = renderPanel();
 
-    const input = screen.getByPlaceholderText(/Ort, Region/i);
+        const input = screen.getByPlaceholderText(/Ort, Region/i);
 
-    await user.type(input, "München");
+        await user.type(input, "München");
 
-    expect(setState).toHaveBeenCalled();
-  });
+        expect(setState).toHaveBeenCalled();
+    });
 
-  test("clears search when X button is clicked", async () => {
-    const user = userEvent.setup();
-    const { setState } = renderPanel({ suche: "Berlin" });
+    test("clears search when X button is clicked", async () => {
+        const user = userEvent.setup();
+        const { setState } = renderPanel({ suche: "Berlin" });
 
-    const clearBtn = screen.getByRole("button", { name: /Suche löschen/i });
+        const clearBtn = screen.getByRole("button", { name: /Suche löschen/i });
 
-    await user.click(clearBtn);
+        await user.click(clearBtn);
 
-    expect(setState).toHaveBeenCalledWith(
-      expect.objectContaining({ suche: "" })
-    );
-  });
+        expect(setState).toHaveBeenCalledWith(expect.objectContaining({ suche: "" }));
+    });
 
-  test("calls onShowNearby when nearby button clicked", async () => {
-    const user = userEvent.setup();
-    const { onShowNearby } = renderPanel();
+    test("calls onShowNearby when nearby button clicked", async () => {
+        const user = userEvent.setup();
+        const { onShowNearby } = renderPanel();
 
-    await user.click(screen.getByText(/Nächste Parkplätze/i));
+        await user.click(screen.getByText(/Nächste Parkplätze/i));
 
-    expect(onShowNearby).toHaveBeenCalled();
-  });
+        expect(onShowNearby).toHaveBeenCalled();
+    });
 
-  test("changes type filter", async () => {
-    const user = userEvent.setup();
-    const { setState } = renderPanel();
+    test("changes type filter", async () => {
+        const user = userEvent.setup();
+        const { setState } = renderPanel();
 
-    await user.click(screen.getByText("Wandern"));
+        await user.click(screen.getByText("Wandern"));
 
-    expect(setState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        typ: "wandern",
-      })
-    );
-  });
+        expect(setState).toHaveBeenCalledWith(
+            expect.objectContaining({
+                typ: "wandern",
+            }),
+        );
+    });
 
-  test("changes rating filter", async () => {
-    const user = userEvent.setup();
-    const { setState } = renderPanel();
+    test("changes rating filter", async () => {
+        const user = userEvent.setup();
+        const { setState } = renderPanel();
 
-    await user.click(screen.getByText("3"));
+        await user.click(screen.getByText("3"));
 
-    expect(setState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        minSterne: 3,
-      })
-    );
-  });
-
+        expect(setState).toHaveBeenCalledWith(
+            expect.objectContaining({
+                minSterne: 3,
+            }),
+        );
+    });
 });
