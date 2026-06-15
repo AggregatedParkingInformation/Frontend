@@ -11,7 +11,7 @@ export function pinIcon(p: Parkplatz, active: boolean): L.DivIcon {
     const isFee = !["no", "unknown", "donation", undefined, null].includes(p.tags?.fee);
 
     const isChargingStation = p.tags?.amenity === "charging_station";
-    const isHiker = p.istWanderparkplatz;
+    const isHiker = p.isHiker;
 
     const cls = cn(
         "wp-marker-pin",

@@ -102,20 +102,14 @@ export function NearbyListDialog({
                                     <div
                                         className={cn(
                                             "size-9 rounded-full grid place-items-center shrink-0 text-white",
-                                            p.istWanderparkplatz
-                                                ? "bg-[hsl(var(--brand))]"
-                                                : "bg-[hsl(var(--stone-blue))]",
+                                            p.isHiker ? "bg-[hsl(var(--brand))]" : "bg-[hsl(var(--stone-blue))]",
                                         )}>
-                                        {p.istWanderparkplatz ? (
-                                            <Mountain className="size-4" />
-                                        ) : (
-                                            <MapPin className="size-4" />
-                                        )}
+                                        {p.isHiker ? <Mountain className="size-4" /> : <MapPin className="size-4" />}
                                     </div>
                                     <div className="flex-1 min-w-0 overflow-hidden">
                                         <div className="flex items-center gap-2 min-w-0">
                                             <span className="font-medium truncate min-w-0 flex-1">{p.name}</span>
-                                            {p.istWanderparkplatz && (
+                                            {p.isHiker && (
                                                 <Badge
                                                     variant="secondary"
                                                     className="shrink-0 text-[10px] py-0 px-1.5">

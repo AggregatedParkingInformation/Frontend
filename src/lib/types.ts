@@ -91,7 +91,7 @@ export type Parkplatz = {
     name: string;
     lat: number;
     lng: number;
-    istWanderparkplatz: boolean;
+    isHiker: boolean;
     region: string;
     /** durchschnittliche Sterne, 0 wenn unbekannt */
     bewertung: number;

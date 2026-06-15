@@ -36,7 +36,7 @@ function toParkplatz(s: ApiParkingSpot): Parkplatz | null {
         name: s.name,
         lat: s.lat,
         lng: s.lng,
-        istWanderparkplatz: s.is_hiker,
+        isHiker: s.is_hiker,
         region: s.region,
         tags: s.tags,
         bewertung: 0,

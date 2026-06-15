@@ -65,8 +65,8 @@ export default function App() {
     const filtered = useMemo(() => {
         const term = filter.suche.trim().toLowerCase();
         const list = parkplaetze.filter((p) => {
-            if (filter.typ === "wandern" && !p.istWanderparkplatz) return false;
-            if (filter.typ === "standard" && p.istWanderparkplatz) return false;
+            if (filter.typ === "wandern" && !p.isHiker) return false;
+            if (filter.typ === "standard" && p.isHiker) return false;
             if (filter.minSterne > 0) {
                 if (!p.anzahlBewertungen || p.bewertung < filter.minSterne) return false;
             }
@@ -363,12 +363,15 @@ function matchesAdvanced(tags: Record<string, string>, a: AdvancedFilter): boole
     if (a.charging === "ja") {
         const cc = tags["capacity:charging"];
         const ccNum = Number(cc);
-        if (!(tags.charging === "yes" || tags.amenity === "charging_station" || (Number.isFinite(ccNum) && ccNum > 0))) return false;
+        if (!(tags.charging === "yes" || tags.amenity === "charging_station" || (Number.isFinite(ccNum) && ccNum > 0)))
+            return false;
     }
     if (a.toilets === "ja" && !(tags.toilets === "yes" || tags["toilets:access"])) return false;
-    if (a.rvFriendly === "ja" && !(tags.caravans === "yes" || tags.motorhome === "yes" || tags["caravan"] === "yes")) return false;
+    if (a.rvFriendly === "ja" && !(tags.caravans === "yes" || tags.motorhome === "yes" || tags["caravan"] === "yes"))
+        return false;
     if (a.truckFriendly === "ja" && !(tags.hgv === "yes" || tags.truck === "yes")) return false;
-    if (a.security === "kamera" && !(tags.surveillance === "camera" || tags["surveillance:type"] === "camera")) return false;
+    if (a.security === "kamera" && !(tags.surveillance === "camera" || tags["surveillance:type"] === "camera"))
+        return false;
     if (a.security === "bewacht" && tags.supervised !== "yes") return false;
     if (a.maxStay !== "alle") {
         const ms = tags.maxstay;
@@ -377,8 +380,20 @@ function matchesAdvanced(tags: Record<string, string>, a: AdvancedFilter): boole
         const need = Number(a.maxStay.replace("h", ""));
         if (!Number.isFinite(hours) || hours < need) return false;
     }
-    if (a.evOnly === "ja" && !(tags["access:electric_vehicle"] === "only" || tags["motor_vehicle:electric"] === "only" || tags.ev_only === "yes")) return false;
-    if (a.parkAndRide === "ja" && !(tags["park_ride"] === "yes" || tags.park_ride === "bus" || tags.park_ride === "train")) return false;
+    if (
+        a.evOnly === "ja" &&
+        !(
+            tags["access:electric_vehicle"] === "only" ||
+            tags["motor_vehicle:electric"] === "only" ||
+            tags.ev_only === "yes"
+        )
+    )
+        return false;
+    if (
+        a.parkAndRide === "ja" &&
+        !(tags["park_ride"] === "yes" || tags.park_ride === "bus" || tags.park_ride === "train")
+    )
+        return false;
     return true;
 }
 

@@ -187,7 +187,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
             <div className="flex items-start justify-between gap-3 p-5 border-b">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        {parkplatz.istWanderparkplatz ? (
+                        {parkplatz.isHiker ? (
                             <Badge className="bg-[hsl(var(--brand))] text-[hsl(var(--brand-foreground))] hover:bg-[hsl(var(--brand))] gap-1">
                                 <Mountain className="size-3" /> Wanderparkplatz
                             </Badge>
@@ -275,9 +275,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                                         <div
                                             key={key}
                                             className="flex items-start gap-3 text-xs min-w-0 w-full">
-                                            <span className="text-muted-foreground truncate min-w-0 flex-1">
-                                                {key}
-                                            </span>
+                                            <span className="text-muted-foreground truncate min-w-0 flex-1">{key}</span>
                                             <span className="font-medium min-w-0 flex-1 text-right break-all">
                                                 {value}
                                             </span>
