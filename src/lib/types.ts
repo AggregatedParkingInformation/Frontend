@@ -9,8 +9,8 @@ export type RoleDto = {
 export type UserDto = {
     id: number;
     username: string;
+    blocked: boolean;
     score?: number;
-    blocked?: boolean;
     createdAt?: string;
     reviews?: number;
     comments?: number;

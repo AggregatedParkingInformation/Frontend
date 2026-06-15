@@ -18,6 +18,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAdminUsers, useDeleteUser } from "@/lib/hooks";
+import { useAuthStore } from "@/lib/stores/authStore";
 import { userIsAdmin, userIsStaff } from "@/lib/roles";
 import type { UserDto } from "@/lib/types";
 import { toast } from "sonner";
@@ -29,9 +30,9 @@ type Props = {
 
 export function AdminPanel({ open, onOpenChange }: Props) {
     const usersQ = useAdminUsers(open);
+    const currentUser = useAuthStore((s) => s.user);
     const delUser = useDeleteUser();
     const [confirmDel, setConfirmDel] = useState<UserDto | null>(null);
-    const [suspended, setSuspended] = useState<Set<number>>(new Set());
     const [search, setSearch] = useState("");
     const qc = useQueryClient();
 
@@ -53,20 +54,12 @@ export function AdminPanel({ open, onOpenChange }: Props) {
         mutationFn: (id: number) => api.removeModerator(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
     });
-    const toggle = (id: number) => {
-        if (suspended.has(id)) {
-            // currently blocked, unblock
+    const toggle = (id: number, blocked: boolean) => {
+        if (blocked) {
             unblockUserMut.mutate(id);
         } else {
-            // block user
             blockUserMut.mutate(id);
         }
-        setSuspended((s) => {
-            const ns = new Set(s);
-            if (ns.has(id)) ns.delete(id);
-            else ns.add(id);
-            return ns;
-        });
     };
 
     const users = (usersQ.data ?? []).filter((u) => u.username.toLowerCase().includes(search.toLowerCase()));
@@ -114,7 +107,6 @@ export function AdminPanel({ open, onOpenChange }: Props) {
                                     </TableHeader>
                                     <TableBody>
                                         {users.map((u) => {
-                                            const blocked = suspended.has(u.id);
                                             const isMod = userIsStaff(u);
                                             const isAdmin = userIsAdmin(u);
                                             return (
@@ -127,7 +119,7 @@ export function AdminPanel({ open, onOpenChange }: Props) {
                                                         </div>
                                                         <div className="text-xs text-muted-foreground flex gap-2 mt-1">
                                                             <span>#{u.id}</span>
-                                                            {blocked ? (
+                                                            {u.blocked ? (
                                                                 <Badge variant="destructive">Gesperrt</Badge>
                                                             ) : (
                                                                 <Badge variant="secondary">Aktiv</Badge>
@@ -161,8 +153,9 @@ export function AdminPanel({ open, onOpenChange }: Props) {
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => toggle(u.id)}>
-                                                                {blocked ? (
+                                                                disabled={currentUser?.id === u.id}
+                                                                onClick={() => toggle(u.id, u.blocked)}>
+                                                                {u.blocked ? (
                                                                     <>
                                                                         <Check className="mr-1 h-4 w-4" /> Aktivieren
                                                                     </>
