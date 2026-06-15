@@ -1,7 +1,12 @@
 import type { Parkplatz } from "./types";
 import { readTile, tileBbox, tilesForBbox, writeTile, type Tile } from "./osmCache";
 
-const API_URL = (import.meta.env.VITE_PARKING_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const API_URL =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((globalThis as any).__ENV__?.VITE_PARKING_API_URL ?? import.meta.env.VITE_PARKING_API_URL ?? "").replace(
+        /\/$/,
+        "",
+    );
 
 export type Bbox = { south: number; west: number; north: number; east: number };
 
