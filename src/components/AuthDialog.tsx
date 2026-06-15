@@ -45,7 +45,7 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
                 onOpenChange(false);
             } catch {
                 // fallback: minimal data
-                const minimalProfile: UserDto = { id: 0, username: loginUser };
+                const minimalProfile: UserDto = { id: 0, username: loginUser, blocked: false };
                 useAuthStore.getState().setUser(minimalProfile);
                 onAuth(minimalProfile);
                 onOpenChange(false);
@@ -68,10 +68,10 @@ export function AuthDialog({ open, onOpenChange, onAuth }: Props) {
             try {
                 await springLogin(regUser, regPw);
                 await refreshAuth();
-                const profile = useAuthStore.getState().user ?? { id: 0, username: regUser };
+                const profile = useAuthStore.getState().user ?? { id: 0, username: regUser, blocked: false };
                 onAuth(profile);
             } catch {
-                const newProfile: UserDto = { id: 0, username: regUser };
+                const newProfile: UserDto = { id: 0, username: regUser, blocked: false };
                 useAuthStore.getState().setUser(newProfile);
                 onAuth(newProfile);
             }
