@@ -18,6 +18,7 @@ import { debounce } from "@/lib/debounce";
 import { mergeParkplaetze } from "@/lib/parkplatzMerge";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { ThemeToggle } from "./components/ToggleTheme";
 
 export default function App() {
     const mapRef = useRef<MapHandleApi>(null);
@@ -167,6 +168,8 @@ export default function App() {
                     ) : (
                         <>Daten wurden geladen</>
                     )}
+
+                    <ThemeToggle className="ml-auto" />
                 </div>
             </aside>
 
@@ -203,6 +206,10 @@ export default function App() {
                             }}
                             resultCount={filtered.length}
                         />
+
+                        <div className="flex justify-center mt-auto mb-2">
+                            <ThemeToggle className="  text-center " />
+                        </div>
                     </SheetContent>
                 </Sheet>
                 <div className="flex-1 px-4 h-12 rounded-2xl bg-background shadow-lg border flex items-center text-sm">
