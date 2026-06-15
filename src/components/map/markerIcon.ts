@@ -6,7 +6,8 @@ const HIKER_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" s
 const PARKING_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="white"><text x="12" y="18" text-anchor="middle" font-size="18" font-weight="800" font-family="system-ui" fill="white">P</text></svg>`;
 
 export function pinIcon(p: Parkplatz, active: boolean): L.DivIcon {
-    const isFee = p.tags?.fee === "yes";
+    //can be yes, no, dontaion, unknown or some text or a number
+    const isFee = !["no", "unknown", "donation", undefined, null].includes(p.tags?.fee);
     const isHiker = p.istWanderparkplatz;
 
     const cls = cn(

@@ -322,9 +322,9 @@ const UNPAVED = new Set([
 
 function matchesAdvanced(tags: Record<string, string>, a: AdvancedFilter): boolean {
     if (a.fee !== "alle") {
-        const fee = tags.fee;
-        if (a.fee === "kostenlos" && fee !== "no") return false;
-        if (a.fee === "kostenpflichtig" && fee !== "yes") return false;
+        const isFee = !["no", "unknown", "donation", undefined, null].includes(tags?.fee);
+        if (a.fee === "kostenlos" && isFee) return false;
+        if (a.fee === "kostenpflichtig" && !isFee) return false;
     }
     if (a.lit === "ja" && tags.lit !== "yes") return false;
     if (a.covered === "ja" && tags.covered !== "yes") return false;
