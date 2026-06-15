@@ -108,7 +108,7 @@ export const api = {
     getAdminUser: (id: number) => req<UserDto>(`/api/v1/users/${id}`),
     // user block management (admin)
     blockUser: (id: number) => req<void>(`/api/v1/admin/users/${id}/block`, { method: "POST" }),
-    unblockUser: (id: number) => req<void>(`/api/v1/admin/users/${id}/unblock`, { method: "DELETE" }),
+    unblockUser: (id: number) => req<void>(`/api/v1/admin/users/${id}/unblock`, { method: "POST" }),
     deleteUser: (id: number) => req<void>(`/api/v1/users/${id}`, { method: "DELETE" }),
     // user delete reviews/comments (own resources)
     deleteReview: (osmId: number) => req<void>(`/api/v1/reviews/${osmId}`, { method: "DELETE" }),
