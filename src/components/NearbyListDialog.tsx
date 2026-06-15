@@ -4,49 +4,49 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { distanzKm, type LatLng, type Parkplatz } from "@/lib/types";
+import { distanceKm, type LatLng, type ParkingSpace } from "@/lib/types";
 import type { FilterState } from "./FilterPanel";
 
 type Props = {
     open: boolean;
     onOpenChange: (b: boolean) => void;
-    parkplaetze: Parkplatz[];
+    parkingSpaces: ParkingSpace[];
     referenz: LatLng;
     referenzLabel: string;
     selectedId: number | null;
-    onSelect: (p: Parkplatz) => void;
+    onSelect: (p: ParkingSpace) => void;
     sortBy?: FilterState["sortBy"];
 };
 
 export function NearbyListDialog({
     open,
     onOpenChange,
-    parkplaetze,
+    parkingSpaces,
     referenz,
     referenzLabel,
     selectedId,
     onSelect,
-    sortBy = "distanz",
+    sortBy = "distance",
 }: Props) {
     const [search, setSearch] = useState("");
 
     const sorted = useMemo(() => {
         const term = search.trim().toLowerCase();
-        const list = parkplaetze
+        const list = parkingSpaces
             .filter((p) => {
                 if (!term) return true;
                 return `${p.name} ${p.region}`.toLowerCase().includes(term);
             })
-            .map((p) => ({ p, d: distanzKm(referenz, p) }));
+            .map((p) => ({ p, d: distanceKm(referenz, p) }));
         list.sort((a, b) => {
-            if (sortBy === "bewertung") return b.p.bewertung - a.p.bewertung;
+            if (sortBy === "rating") return b.p.rating - a.p.rating;
             if (sortBy === "name") return a.p.name.localeCompare(b.p.name);
             return a.d - b.d;
         });
         return list.slice(0, 50);
-    }, [parkplaetze, referenz, search, sortBy]);
+    }, [parkingSpaces, referenz, search, sortBy]);
 
-    const sortLabel = sortBy === "bewertung" ? "Bewertung" : sortBy === "name" ? "Name" : "Entfernung";
+    const sortLabel = sortBy === "rating" ? "Bewertung" : sortBy === "name" ? "Name" : "Entfernung";
 
     return (
         <Dialog
@@ -118,10 +118,10 @@ export function NearbyListDialog({
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
-                                            {p.bewertung > 0 ? (
+                                            {p.rating > 0 ? (
                                                 <span className="inline-flex items-center gap-1 shrink-0">
                                                     <Star className="size-3 fill-[hsl(var(--rating))] text-[hsl(var(--rating))]" />
-                                                    {p.bewertung.toFixed(1)}
+                                                    {p.rating.toFixed(1)}
                                                 </span>
                                             ) : (
                                                 <span className="shrink-0">Keine Bewertung</span>

@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
-import type { Parkplatz, LatLng } from "@/lib/types";
+import type { ParkingSpace, LatLng } from "@/lib/types";
 import type { Bbox } from "@/lib/osm";
 import { MAP_MAX_ZOOM, MAP_MIN_ZOOM, PARKING_LOAD_MIN_ZOOM } from "@/lib/constants";
 import { ClusteredMarkers } from "./map/ClusteredMarkers";
@@ -63,17 +63,17 @@ export type MapHandleApi = {
 };
 
 type Props = {
-    parkplaetze: Parkplatz[];
+    parkingSpaces: ParkingSpace[];
     userPos: LatLng | null;
     selectedId: number | null;
-    onSelect: (p: Parkplatz) => void;
+    onSelect: (p: ParkingSpace) => void;
     onBboxChange: (b: Bbox | null) => void;
     onZoomChange?: (z: number) => void;
     initialCenter: LatLng;
 };
 
 export const Map = forwardRef<MapHandleApi, Props>(function Map(
-    { parkplaetze, userPos, selectedId, onSelect, onBboxChange, onZoomChange, initialCenter },
+    { parkingSpaces, userPos, selectedId, onSelect, onBboxChange, onZoomChange, initialCenter },
     ref,
 ) {
     const handleRef = useRef<MapHandleApi | null>(null);
@@ -112,7 +112,7 @@ export const Map = forwardRef<MapHandleApi, Props>(function Map(
                 />
             )}
             <ClusteredMarkers
-                parkplaetze={parkplaetze}
+                parkingSpaces={parkingSpaces}
                 selectedId={selectedId}
                 onSelect={onSelect}
             />

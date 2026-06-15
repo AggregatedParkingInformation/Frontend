@@ -24,7 +24,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { distanzKm, type LatLng, type Parkplatz } from "@/lib/types";
+import { distanceKm, type LatLng, type ParkingSpace } from "@/lib/types";
 import {
     useCreateComment,
     useCreateReview,
@@ -46,7 +46,7 @@ import { useAuthStore } from "@/lib/stores/authStore";
 import { toast } from "sonner";
 
 type Props = {
-    parkplatz: Parkplatz;
+    parkingSpace: ParkingSpace;
     userPos: LatLng | null;
     onClose: () => void;
     canInteract: boolean;
@@ -58,15 +58,15 @@ const MAX_LEN = 300;
 
 const EXCLUDED_TAGS = new Set(["name", "amenity"]);
 
-export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRequireLogin, inSheet }: Props) {
+export function ParkingSpaceDetail({ parkingSpace, userPos, onClose, canInteract, onRequireLogin, inSheet }: Props) {
     const [ratingOpen, setRatingOpen] = useState(false);
     const [commentOpen, setCommentOpen] = useState(false);
     const [myRating, setMyRating] = useState(0);
     const [reviewText, setReviewText] = useState("");
     const [comment, setComment] = useState("");
 
-    const reviewsQ = useSpaceReviews(parkplatz.osmId);
-    const commentsQ = useSpaceComments(parkplatz.osmId);
+    const reviewsQ = useSpaceReviews(parkingSpace.osmId);
+    const commentsQ = useSpaceComments(parkingSpace.osmId);
     const createReview = useCreateReview();
     const createComment = useCreateComment();
     const updateReview = useUpdateReview();
@@ -101,18 +101,18 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
             else await adminDeleteComment.mutateAsync(deleteTarget.id);
         } else {
             // Regular users delete their own review/comment by space osmId
-            if (deleteTarget.type === "review") await deleteReview.mutateAsync(parkplatz.osmId);
-            else await deleteComment.mutateAsync(parkplatz.osmId);
+            if (deleteTarget.type === "review") await deleteReview.mutateAsync(parkingSpace.osmId);
+            else await deleteComment.mutateAsync(parkingSpace.osmId);
         }
         setDeleteModalOpen(false);
         setDeleteTarget(null);
     };
 
-    const dist = userPos ? distanzKm(userPos, parkplatz) : null;
+    const dist = userPos ? distanceKm(userPos, parkingSpace) : null;
 
     const reviews = reviewsQ.data ?? [];
     const comments = commentsQ.data ?? [];
-    const avg = reviews.length > 0 ? reviews.reduce((s, r) => s + r.stars, 0) / reviews.length : parkplatz.bewertung;
+    const avg = reviews.length > 0 ? reviews.reduce((s, r) => s + r.stars, 0) / reviews.length : parkingSpace.rating;
 
     const requireLogin = () => {
         if (!canInteract) {
@@ -131,14 +131,14 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
         try {
             if (existing) {
                 await updateReview.mutateAsync({
-                    osmId: parkplatz.osmId,
+                    osmId: parkingSpace.osmId,
                     stars: myRating,
                     reviewText: reviewText,
                 });
                 toast.success("Bewertung aktualisiert");
             } else {
                 await createReview.mutateAsync({
-                    osmId: parkplatz.osmId,
+                    osmId: parkingSpace.osmId,
                     stars: myRating,
                     reviewText: reviewText,
                 });
@@ -161,13 +161,13 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
         try {
             if (existing) {
                 await updateComment.mutateAsync({
-                    osmId: parkplatz.osmId,
+                    osmId: parkingSpace.osmId,
                     commentText: comment,
                 });
                 toast.success("Kommentar aktualisiert");
             } else {
                 await createComment.mutateAsync({
-                    osmId: parkplatz.osmId,
+                    osmId: parkingSpace.osmId,
                     commentText: comment,
                 });
                 toast.success("Kommentar gespeichert");
@@ -180,29 +180,29 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
         }
     };
 
-    const parkspaceTags = Object.entries(parkplatz.tags).filter(([key]) => !EXCLUDED_TAGS.has(key));
+    const parkspaceTags = Object.entries(parkingSpace.tags).filter(([key]) => !EXCLUDED_TAGS.has(key));
 
     return (
         <div className="flex flex-col h-full">
             <div className="flex items-start justify-between gap-3 p-5 border-b">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        {parkplatz.isHiker ? (
+                        {parkingSpace.isHiker ? (
                             <Badge className="bg-[hsl(var(--brand))] text-[hsl(var(--brand-foreground))] hover:bg-[hsl(var(--brand))] gap-1">
                                 <Mountain className="size-3" /> Wanderparkplatz
                             </Badge>
                         ) : (
                             <Badge variant="secondary">Parkplatz</Badge>
                         )}
-                        {parkplatz.region && <span className="text-xs text-muted-foreground">{parkplatz.region}</span>}
+                        {parkingSpace.region && <span className="text-xs text-muted-foreground">{parkingSpace.region}</span>}
                     </div>
-                    <h2 className="font-heading text-xl font-semibold leading-tight">{parkplatz.name}</h2>
+                    <h2 className="font-heading text-xl font-semibold leading-tight">{parkingSpace.name}</h2>
                     <div className="flex items-center gap-3 mt-2 text-sm">
                         <span className="inline-flex items-center gap-1">
                             <StarIcon className="size-3.5 fill-[hsl(var(--rating))] text-[hsl(var(--rating))]" />
                             <span className="font-semibold tabular-nums">{avg > 0 ? avg.toFixed(1) : "–"}</span>
                             <span className="text-xs text-muted-foreground">
-                                ({reviews.length || parkplatz.anzahlBewertungen})
+                                ({reviews.length || parkingSpace.reviewCount})
                             </span>
                         </span>
                         {dist != null && (
@@ -246,10 +246,10 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                         <div className="rounded-xl border bg-card p-4">
                             <div className="text-xs text-muted-foreground">Koordinaten</div>
                             <div className="font-mono text-sm mt-1">
-                                {parkplatz.lat.toFixed(5)}, {parkplatz.lng.toFixed(5)}
+                                {parkingSpace.lat.toFixed(5)}, {parkingSpace.lng.toFixed(5)}
                             </div>
                             <a
-                                href={`https://www.openstreetmap.org/?mlat=${parkplatz.lat}&mlon=${parkplatz.lng}#map=17/${parkplatz.lat}/${parkplatz.lng}`}
+                                href={`https://www.openstreetmap.org/?mlat=${parkingSpace.lat}&mlon=${parkingSpace.lng}#map=17/${parkingSpace.lat}/${parkingSpace.lng}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-xs text-[hsl(var(--brand))] hover:underline mt-2 inline-block">
@@ -259,11 +259,11 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                         <div className="grid grid-cols-2 gap-3">
                             <Stat
                                 label="Bewertungen"
-                                value={reviews.length || parkplatz.anzahlBewertungen}
+                                value={reviews.length || parkingSpace.reviewCount}
                             />
                             <Stat
                                 label="Kommentare"
-                                value={comments.length || parkplatz.anzahlKommentare}
+                                value={comments.length || parkingSpace.commentCount}
                             />
                         </div>
                         {parkspaceTags.length > 0 && (
@@ -404,7 +404,7 @@ export function ParkplatzDetail({ parkplatz, userPos, onClose, canInteract, onRe
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Parkplatz bewerten</DialogTitle>
-                        <DialogDescription>Wie ist {parkplatz.name}?</DialogDescription>
+                        <DialogDescription>Wie ist {parkingSpace.name}?</DialogDescription>
                     </DialogHeader>
                     <div className="flex justify-center py-4">
                         <StarRating

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import { fetchParkplaetzeInBbox, type Bbox } from "./osm";
+import { fetchParkingSpacesInBbox, type Bbox } from "./osm";
 import { searchPlaces } from "./geocode";
 import type { CommentPostRequest, ReviewPostRequest, UserPostRequestDto } from "./types";
 
@@ -8,7 +8,7 @@ export function useOsmParkplaetze(bbox: Bbox | null) {
     return useQuery({
         queryKey: ["osm", bbox && [bbox.south, bbox.west, bbox.north, bbox.east].map((n) => n.toFixed(2)).join(",")],
         enabled: !!bbox,
-        queryFn: ({ signal }) => fetchParkplaetzeInBbox(bbox!, signal),
+        queryFn: ({ signal }) => fetchParkingSpacesInBbox(bbox!, signal),
         staleTime: 1000 * 60 * 30,
         gcTime: 1000 * 60 * 60,
         retry: 1,

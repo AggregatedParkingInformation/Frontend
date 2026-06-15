@@ -4,16 +4,16 @@ import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { useMap } from "react-leaflet";
-import type { Parkplatz } from "@/lib/types";
+import type { ParkingSpace } from "@/lib/types";
 import { pinIcon } from "./markerIcon";
 
 type Props = {
-    parkplaetze: Parkplatz[];
+    parkingSpaces: ParkingSpace[];
     selectedId: number | null;
-    onSelect: (p: Parkplatz) => void;
+    onSelect: (p: ParkingSpace) => void;
 };
 
-export function ClusteredMarkers({ parkplaetze, selectedId, onSelect }: Props) {
+export function ClusteredMarkers({ parkingSpaces, selectedId, onSelect }: Props) {
     const map = useMap();
     const groupRef = useRef<L.MarkerClusterGroup | null>(null);
     const markersRef = useRef<Map<number, L.Marker>>(new Map());
@@ -41,12 +41,12 @@ export function ClusteredMarkers({ parkplaetze, selectedId, onSelect }: Props) {
         };
     }, [map]);
 
-    // Sync markers with parkplaetze (add/remove only the diff so cluster state is preserved)
+    // Sync markers with parkingSpaces (add/remove only the diff so cluster state is preserved)
     useEffect(() => {
         const group = groupRef.current;
         if (!group) return;
         const existing = markersRef.current;
-        const nextIds = new Set(parkplaetze.map((p) => p.osmId));
+        const nextIds = new Set(parkingSpaces.map((p) => p.osmId));
 
         // Remove markers no longer present
         const toRemove: L.Marker[] = [];
@@ -60,7 +60,7 @@ export function ClusteredMarkers({ parkplaetze, selectedId, onSelect }: Props) {
 
         // Add new markers
         const toAdd: L.Marker[] = [];
-        for (const p of parkplaetze) {
+        for (const p of parkingSpaces) {
             if (!existing.has(p.osmId)) {
                 const m = L.marker([p.lat, p.lng], { icon: pinIcon(p, p.osmId === selectedIdRef.current) });
                 m.on("click", () => selectRef.current(p));
@@ -69,7 +69,7 @@ export function ClusteredMarkers({ parkplaetze, selectedId, onSelect }: Props) {
             }
         }
         if (toAdd.length) group.addLayers(toAdd);
-    }, [parkplaetze]);
+    }, [parkingSpaces]);
 
     // Update only the icons of the previously- and newly-selected markers — do not rebuild
     const prevSelectedRef = useRef<number | null>(null);
@@ -82,7 +82,7 @@ export function ClusteredMarkers({ parkplaetze, selectedId, onSelect }: Props) {
             if (id == null) return;
             const m = existing.get(id);
             if (!m) return;
-            const p = parkplaetze.find((x) => x.osmId === id);
+            const p = parkingSpaces.find((x) => x.osmId === id);
             if (p) m.setIcon(pinIcon(p, active));
         };
 
@@ -90,7 +90,7 @@ export function ClusteredMarkers({ parkplaetze, selectedId, onSelect }: Props) {
             updateIcon(prev, false);
             updateIcon(selectedId, true);
         }
-    }, [selectedId, parkplaetze]);
+    }, [selectedId, parkingSpaces]);
 
     return null;
 }

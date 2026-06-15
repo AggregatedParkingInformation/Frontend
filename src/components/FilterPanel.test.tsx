@@ -72,13 +72,13 @@ describe("FilterPanel", () => {
 
     test("clears search when X button is clicked", async () => {
         const user = userEvent.setup();
-        const { setState } = renderPanel({ suche: "Berlin" });
+        const { setState } = renderPanel({ search: "Berlin" });
 
         const clearBtn = screen.getByRole("button", { name: /Suche löschen/i });
 
         await user.click(clearBtn);
 
-        expect(setState).toHaveBeenCalledWith(expect.objectContaining({ suche: "" }));
+        expect(setState).toHaveBeenCalledWith(expect.objectContaining({ search: "" }));
     });
 
     test("calls onShowNearby when nearby button clicked", async () => {
@@ -98,7 +98,7 @@ describe("FilterPanel", () => {
 
         expect(setState).toHaveBeenCalledWith(
             expect.objectContaining({
-                typ: "wandern",
+                category: "hiking",
             }),
         );
     });
@@ -111,7 +111,7 @@ describe("FilterPanel", () => {
 
         expect(setState).toHaveBeenCalledWith(
             expect.objectContaining({
-                minSterne: 3,
+                minStars: 3,
             }),
         );
     });

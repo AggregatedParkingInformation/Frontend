@@ -1,7 +1,7 @@
-import type { ParkingSpaceDto, Parkplatz } from "./types";
+import type { ParkingSpaceDto, ParkingSpace } from "./types";
 
 /** Merge OSM list with backend review/comment aggregates (incl. avgRating). */
-export function mergeParkplaetze(osm: Parkplatz[], spaces: ParkingSpaceDto[] | undefined): Parkplatz[] {
+export function mergeParkingSpaces(osm: ParkingSpace[], spaces: ParkingSpaceDto[] | undefined): ParkingSpace[] {
     if (!osm.length) return osm;
     const agg = new Map<number, ParkingSpaceDto>();
     for (const s of spaces ?? []) agg.set(s.osmId, s);
@@ -11,9 +11,9 @@ export function mergeParkplaetze(osm: Parkplatz[], spaces: ParkingSpaceDto[] | u
         if (!a) return p;
         return {
             ...p,
-            anzahlBewertungen: a.reviews ?? 0,
-            anzahlKommentare: a.comments ?? 0,
-            bewertung: a.avgRating ?? 0,
+            reviewCount: a.reviews ?? 0,
+            commentCount: a.comments ?? 0,
+            rating: a.avgRating ?? 0,
         };
     });
 }

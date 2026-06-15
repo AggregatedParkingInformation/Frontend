@@ -1,11 +1,11 @@
 import { createStore, get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
-import type { Parkplatz } from "./types";
+import type { ParkingSpace } from "./types";
 
 const TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days — IndexedDB has plenty of room
 export const TILE = 0.08; // ~8km
 
 export type Tile = { x: number; y: number };
-type Entry = { ts: number; data: Parkplatz[] };
+type Entry = { ts: number; data: ParkingSpace[] };
 
 const store = createStore("wanderpark", "osm-tiles");
 
@@ -40,7 +40,7 @@ function isFresh(e: Entry): boolean {
     return Date.now() - e.ts <= TTL_MS;
 }
 
-export async function readTile(t: Tile): Promise<Parkplatz[] | null> {
+export async function readTile(t: Tile): Promise<ParkingSpace[] | null> {
     const id = tileId(t);
     const mem = memCache.get(id);
     if (mem) return isFresh(mem) ? mem.data : (memCache.delete(id), null);
@@ -58,7 +58,7 @@ export async function readTile(t: Tile): Promise<Parkplatz[] | null> {
     }
 }
 
-export async function writeTile(t: Tile, data: Parkplatz[]): Promise<void> {
+export async function writeTile(t: Tile, data: ParkingSpace[]): Promise<void> {
     const id = tileId(t);
     const entry: Entry = { ts: Date.now(), data };
     memCache.set(id, entry);

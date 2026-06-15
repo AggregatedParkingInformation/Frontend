@@ -45,71 +45,71 @@ import { cn } from "@/lib/utils";
 import { usePlaceSuggestions } from "@/lib/hooks";
 import type { PlaceSuggestion } from "@/lib/geocode";
 
-export type ParkTyp = "alle" | "wandern" | "standard";
+export type ParkingCategory = "all" | "hiking" | "standard";
 
 export type AdvancedFilter = {
-    fee: "alle" | "kostenlos" | "kostenpflichtig";
-    lit: "alle" | "ja";
-    covered: "alle" | "ja";
-    surface: "alle" | "befestigt" | "unbefestigt";
-    access: "alle" | "oeffentlich" | "kunden" | "privat";
-    disabled: "alle" | "ja";
-    parkingType: "alle" | "oberirdisch" | "tiefgarage" | "parkhaus";
-    minKapazitaet: number;
-    charging: "alle" | "ja";
-    toilets: "alle" | "ja";
-    rvFriendly: "alle" | "ja";
-    truckFriendly: "alle" | "ja";
-    security: "alle" | "kamera" | "bewacht";
-    maxStay: "alle" | "1h" | "2h" | "4h" | "8h" | "24h";
-    evOnly: "alle" | "ja";
-    parkAndRide: "alle" | "ja";
+    fee: "all" | "free" | "paid";
+    lit: "all" | "yes";
+    covered: "all" | "yes";
+    surface: "all" | "paved" | "unpaved";
+    access: "all" | "public" | "customers" | "private";
+    disabled: "all" | "yes";
+    parkingType: "all" | "surface" | "underground" | "garage";
+    minCapacity: number;
+    charging: "all" | "yes";
+    toilets: "all" | "yes";
+    rvFriendly: "all" | "yes";
+    truckFriendly: "all" | "yes";
+    security: "all" | "camera" | "guarded";
+    maxStay: "all" | "1h" | "2h" | "4h" | "8h" | "24h";
+    evOnly: "all" | "yes";
+    parkAndRide: "all" | "yes";
     maxDistance: number;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const defaultAdvanced: AdvancedFilter = {
-    fee: "alle",
-    lit: "alle",
-    covered: "alle",
-    surface: "alle",
-    access: "alle",
-    disabled: "alle",
-    parkingType: "alle",
-    minKapazitaet: 0,
-    charging: "alle",
-    toilets: "alle",
-    rvFriendly: "alle",
-    truckFriendly: "alle",
-    security: "alle",
-    maxStay: "alle",
-    evOnly: "alle",
-    parkAndRide: "alle",
+    fee: "all",
+    lit: "all",
+    covered: "all",
+    surface: "all",
+    access: "all",
+    disabled: "all",
+    parkingType: "all",
+    minCapacity: 0,
+    charging: "all",
+    toilets: "all",
+    rvFriendly: "all",
+    truckFriendly: "all",
+    security: "all",
+    maxStay: "all",
+    evOnly: "all",
+    parkAndRide: "all",
     maxDistance: 0,
 };
 
 export type FilterState = {
-    typ: ParkTyp;
-    minSterne: number;
-    suche: string;
-    sortBy: "distanz" | "bewertung" | "name";
+    category: ParkingCategory;
+    minStars: number;
+    search: string;
+    sortBy: "distance" | "rating" | "name";
     advanced: AdvancedFilter;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const defaultFilter: FilterState = {
-    typ: "alle",
-    minSterne: 0,
-    suche: "",
-    sortBy: "distanz",
+    category: "all",
+    minStars: 0,
+    search: "",
+    sortBy: "distance",
     advanced: { ...defaultAdvanced },
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function countActiveAdvanced(a: AdvancedFilter): number {
     return Object.entries(a).reduce((n, [k, v]) => {
-        if (k === "minKapazitaet" || k === "maxDistance") return n + ((v as number) > 0 ? 1 : 0);
-        return n + (v !== "alle" ? 1 : 0);
+        if (k === "minCapacity" || k === "maxDistance") return n + ((v as number) > 0 ? 1 : 0);
+        return n + (v !== "all" ? 1 : 0);
     }, 0);
 }
 
@@ -122,27 +122,27 @@ type Props = {
     resultCount?: number;
 };
 
-const TYP_OPTIONS: { value: ParkTyp; label: string }[] = [
-    { value: "alle", label: "Alle" },
-    { value: "wandern", label: "Wandern" },
+const TYP_OPTIONS: { value: ParkingCategory; label: string }[] = [
+    { value: "all", label: "Alle" },
+    { value: "hiking", label: "Wandern" },
     { value: "standard", label: "Standard" },
 ];
 
 export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSelect, resultCount }: Props) {
-    const [debounced, setDebounced] = useState(state.suche);
+    const [debounced, setDebounced] = useState(state.search);
     const [suggestOpen, setSuggestOpen] = useState(false);
     const [advancedOpen, setAdvancedOpen] = useState(false);
     const advancedCount = useMemo(() => countActiveAdvanced(state.advanced), [state.advanced]);
     useEffect(() => {
-        const t = setTimeout(() => setDebounced(state.suche), 300);
+        const t = setTimeout(() => setDebounced(state.search), 300);
         return () => clearTimeout(t);
-    }, [state.suche]);
+    }, [state.search]);
     const suggestQ = usePlaceSuggestions(suggestOpen ? debounced : "");
     const suggestions = suggestQ.data ?? [];
 
     const pickSuggestion = (p: PlaceSuggestion) => {
         setSuggestOpen(false);
-        setState({ ...state, suche: "" }); //clear search input
+        setState({ ...state, search: "" }); //clear search input
         onPlaceSelect?.(p);
     };
 
@@ -153,9 +153,9 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                 <Input
                     className="pl-9 pr-9 h-11 rounded-full bg-muted/60 border-transparent focus-visible:bg-background"
                     placeholder="Ort, Region oder Parkplatz…"
-                    value={state.suche}
+                    value={state.search}
                     onChange={(e) => {
-                        setState({ ...state, suche: e.target.value });
+                        setState({ ...state, search: e.target.value });
                         setSuggestOpen(true);
                     }}
                     onFocus={() => setSuggestOpen(true)}
@@ -171,10 +171,10 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                         if (e.key === "Escape") setSuggestOpen(false);
                     }}
                 />
-                {state.suche && (
+                {state.search && (
                     <button
                         onClick={() => {
-                            setState({ ...state, suche: "" });
+                            setState({ ...state, search: "" });
                             setSuggestOpen(false);
                         }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
@@ -216,14 +216,14 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                     {TYP_OPTIONS.map((o) => (
                         <button
                             key={o.value}
-                            onClick={() => setState({ ...state, typ: o.value })}
+                            onClick={() => setState({ ...state, category: o.value })}
                             className={cn(
                                 "flex-1 text-sm font-medium rounded-full px-3 py-1.5 transition-colors flex items-center justify-center gap-1.5",
-                                state.typ === o.value
+                                state.category === o.value
                                     ? "bg-background shadow-sm text-foreground"
                                     : "text-muted-foreground hover:text-foreground",
                             )}>
-                            {o.value === "wandern" && <Mountain className="size-3.5" />}
+                            {o.value === "hiking" && <Mountain className="size-3.5" />}
                             {o.label}
                         </button>
                     ))}
@@ -235,17 +235,17 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                 title="Mindest-Bewertung"
                 trailing={
                     <span className="text-xs font-semibold tabular-nums text-foreground">
-                        {state.minSterne === 0 ? "Alle" : `${state.minSterne}+`}
+                        {state.minStars === 0 ? "Alle" : `${state.minStars}+`}
                     </span>
                 }>
                 <div className="flex gap-1.5">
                     {[0, 1, 2, 3, 4, 5].map((n) => (
                         <button
                             key={n}
-                            onClick={() => setState({ ...state, minSterne: n })}
+                            onClick={() => setState({ ...state, minStars: n })}
                             className={cn(
                                 "flex-1 h-9 rounded-lg text-sm font-medium border transition-colors",
-                                state.minSterne === n
+                                state.minStars === n
                                     ? "bg-[hsl(var(--brand))] text-[hsl(var(--brand-foreground))] border-transparent shadow-sm"
                                     : "bg-background hover:bg-muted border-border",
                             )}>
@@ -270,8 +270,8 @@ export function FilterPanel({ state, setState, onShowNearby, onSearch, onPlaceSe
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="distanz">Entfernung</SelectItem>
-                        <SelectItem value="bewertung">Bewertung</SelectItem>
+                        <SelectItem value="distance">Entfernung</SelectItem>
+                        <SelectItem value="rating">Bewertung</SelectItem>
                         <SelectItem value="name">Name</SelectItem>
                     </SelectContent>
                 </Select>
@@ -403,12 +403,12 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                     label="Mindestkapazität"
                                     trailing={
                                         <span className="text-xs font-semibold tabular-nums">
-                                            {value.minKapazitaet === 0 ? "Alle" : `${value.minKapazitaet}+`}
+                                            {value.minCapacity === 0 ? "Alle" : `${value.minCapacity}+`}
                                         </span>
                                     }>
                                     <Slider
-                                        value={[value.minKapazitaet]}
-                                        onValueChange={(vals: number[]) => set("minKapazitaet", vals[0])}
+                                        value={[value.minCapacity]}
+                                        onValueChange={(vals: number[]) => set("minCapacity", vals[0])}
                                         min={0}
                                         max={100}
                                         step={5}
@@ -427,9 +427,9 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
-                                <SelectItem value="kostenlos">Kostenlos</SelectItem>
-                                <SelectItem value="kostenpflichtig">Kostenpflichtig</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
+                                <SelectItem value="free">Kostenlos</SelectItem>
+                                <SelectItem value="paid">Kostenpflichtig</SelectItem>
                             </SelectContent>
                         </Select>
                     </AdvField>
@@ -443,10 +443,10 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
-                                <SelectItem value="oeffentlich">Öffentlich</SelectItem>
-                                <SelectItem value="kunden">Kunden</SelectItem>
-                                <SelectItem value="privat">Privat</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
+                                <SelectItem value="public">Öffentlich</SelectItem>
+                                <SelectItem value="customers">Kunden</SelectItem>
+                                <SelectItem value="private">Privat</SelectItem>
                             </SelectContent>
                         </Select>
                     </AdvField>
@@ -460,9 +460,9 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
-                                <SelectItem value="befestigt">Befestigt</SelectItem>
-                                <SelectItem value="unbefestigt">Unbefestigt</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
+                                <SelectItem value="paved">Befestigt</SelectItem>
+                                <SelectItem value="unpaved">Unbefestigt</SelectItem>
                             </SelectContent>
                         </Select>
                     </AdvField>
@@ -476,10 +476,10 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
-                                <SelectItem value="oberirdisch">Oberirdisch</SelectItem>
-                                <SelectItem value="tiefgarage">Tiefgarage</SelectItem>
-                                <SelectItem value="parkhaus">Parkhaus</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
+                                <SelectItem value="surface">Oberirdisch</SelectItem>
+                                <SelectItem value="underground">Tiefgarage</SelectItem>
+                                <SelectItem value="garage">Parkhaus</SelectItem>
                             </SelectContent>
                         </Select>
                     </AdvField>
@@ -493,8 +493,8 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
-                                <SelectItem value="ja">Beleuchtet</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
+                                <SelectItem value="yes">Beleuchtet</SelectItem>
                             </SelectContent>
                         </Select>
                     </AdvField>
@@ -508,8 +508,8 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
-                                <SelectItem value="ja">Überdacht</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
+                                <SelectItem value="yes">Überdacht</SelectItem>
                             </SelectContent>
                         </Select>
                     </AdvField>
@@ -523,8 +523,8 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
-                                <SelectItem value="ja">Vorhanden</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
+                                <SelectItem value="yes">Vorhanden</SelectItem>
                             </SelectContent>
                         </Select>
                     </AdvField>
@@ -566,9 +566,9 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
-                                <SelectItem value="kamera">Kameraüberwacht</SelectItem>
-                                <SelectItem value="bewacht">Bewacht</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
+                                <SelectItem value="camera">Kameraüberwacht</SelectItem>
+                                <SelectItem value="guarded">Bewacht</SelectItem>
                             </SelectContent>
                         </Select>
                     </AdvField>
@@ -582,7 +582,7 @@ function AdvancedFilterDialog({ open, onOpenChange, value, onChange }: AdvancedD
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="alle">Alle</SelectItem>
+                                <SelectItem value="all">Alle</SelectItem>
                                 <SelectItem value="1h">≥ 1 Stunde</SelectItem>
                                 <SelectItem value="2h">≥ 2 Stunden</SelectItem>
                                 <SelectItem value="4h">≥ 4 Stunden</SelectItem>
@@ -645,7 +645,7 @@ function AdvField({
 }
 
 type YesNoKeys = {
-    [K in keyof AdvancedFilter]: AdvancedFilter[K] extends "alle" | "ja" ? K : never;
+    [K in keyof AdvancedFilter]: AdvancedFilter[K] extends "all" | "yes" ? K : never;
 }[keyof AdvancedFilter];
 
 function YesNoField<K extends YesNoKeys>({
@@ -672,8 +672,8 @@ function YesNoField<K extends YesNoKeys>({
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="alle">Alle</SelectItem>
-                    <SelectItem value="ja">Ja</SelectItem>
+                    <SelectItem value="all">Alle</SelectItem>
+                    <SelectItem value="yes">Ja</SelectItem>
                 </SelectContent>
             </Select>
         </AdvField>

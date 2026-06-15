@@ -1,4 +1,4 @@
-import type { Parkplatz } from "./types";
+import type { ParkingSpace } from "./types";
 import { readTile, tileBbox, tilesForBbox, writeTile, type Tile } from "./osmCache";
 
 const API_URL =
@@ -29,7 +29,7 @@ type ApiResponse = {
 /** Set when the last bbox response hit the server-side limit. */
 export let lastResponseTruncated = false;
 
-function toParkplatz(s: ApiParkingSpot): Parkplatz | null {
+function toParkingSpace(s: ApiParkingSpot): ParkingSpace | null {
     if (s.tags.bus == "designated") return null;
     return {
         osmId: s.osm_id,
@@ -39,13 +39,13 @@ function toParkplatz(s: ApiParkingSpot): Parkplatz | null {
         isHiker: s.is_hiker,
         region: s.region,
         tags: s.tags,
-        bewertung: 0,
-        anzahlBewertungen: 0,
-        anzahlKommentare: 0,
+        rating: 0,
+        reviewCount: 0,
+        commentCount: 0,
     };
 }
 
-async function fetchTile(t: Tile, signal?: AbortSignal): Promise<Parkplatz[]> {
+async function fetchTile(t: Tile, signal?: AbortSignal): Promise<ParkingSpace[]> {
     const b = tileBbox(t);
     const url =
         `${API_URL}/parking/bbox?south=${b.south}&west=${b.west}` + `&north=${b.north}&east=${b.east}&limit=5000`;
@@ -53,13 +53,13 @@ async function fetchTile(t: Tile, signal?: AbortSignal): Promise<Parkplatz[]> {
     if (!res.ok) throw new Error(`Parking API ${res.status}`);
     const json = (await res.json()) as ApiResponse;
     if (json.truncated) lastResponseTruncated = true;
-    return json.items.map(toParkplatz).filter((p) => p != null);
+    return json.items.map(toParkingSpace).filter((p) => p != null);
 }
 
-export async function fetchParkplaetzeInBbox(b: Bbox, signal?: AbortSignal): Promise<Parkplatz[]> {
+export async function fetchParkingSpacesInBbox(b: Bbox, signal?: AbortSignal): Promise<ParkingSpace[]> {
     lastResponseTruncated = false;
     const tiles = tilesForBbox(b);
-    const collected: Parkplatz[] = [];
+    const collected: ParkingSpace[] = [];
 
     const cachedReads = await Promise.all(tiles.map((t) => readTile(t)));
     const missing: Tile[] = [];

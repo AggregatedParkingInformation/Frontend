@@ -86,23 +86,23 @@ export type PublicParkingSpaceResponseDto = {
 };
 
 // Internal map type — merged OSM + backend aggregate
-export type Parkplatz = {
+export type ParkingSpace = {
     osmId: number;
     name: string;
     lat: number;
     lng: number;
     isHiker: boolean;
     region: string;
-    /** durchschnittliche Sterne, 0 wenn unbekannt */
-    bewertung: number;
-    anzahlBewertungen: number;
-    anzahlKommentare: number;
+    /** average stars, 0 if unknown */
+    rating: number;
+    reviewCount: number;
+    commentCount: number;
     tags: Record<string, string>;
 };
 
 export type LatLng = { lat: number; lng: number };
 
-export function distanzKm(a: LatLng, b: LatLng): number {
+export function distanceKm(a: LatLng, b: LatLng): number {
     const R = 6371;
     const toRad = (d: number) => (d * Math.PI) / 180;
     const dLat = toRad(b.lat - a.lat);

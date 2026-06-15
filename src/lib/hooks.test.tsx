@@ -10,7 +10,7 @@ vi.mock("./api", () => ({
 }));
 
 vi.mock("./osm", () => ({
-    fetchParkplaetzeInBbox: vi.fn(),
+    fetchParkingSpacesInBbox: vi.fn(),
 }));
 
 vi.mock("./geocode", () => ({

@@ -3,7 +3,7 @@ import { Loader2, Locate, Menu, User, ZoomIn } from "lucide-react";
 import { AdminPanel } from "@/components/AdminPanel";
 import { Map as MapView, type MapHandleApi } from "@/components/Map";
 import { FilterPanel, defaultFilter, type AdvancedFilter, type FilterState } from "@/components/FilterPanel";
-import { ParkplatzDetail } from "@/components/ParkplatzDetail";
+import { ParkingSpaceDetail } from "@/components/ParkingSpaceDetail";
 import { NearbyListDialog } from "@/components/NearbyListDialog";
 import { ProfileSheet } from "@/components/ProfileSheet";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,11 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Toaster } from "sonner";
 import { useOsmParkplaetze, useParkingSpacesBulk } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores/authStore";
-import { distanzKm, type LatLng, type Parkplatz } from "@/lib/types";
+import { distanceKm, type LatLng, type ParkingSpace } from "@/lib/types";
 import type { Bbox } from "@/lib/osm";
 import { BBOX_DEBOUNCE_MS, INITIAL_CENTER, PARKING_LOAD_MIN_ZOOM } from "@/lib/constants";
 import { debounce } from "@/lib/debounce";
-import { mergeParkplaetze } from "@/lib/parkplatzMerge";
+import { mergeParkingSpaces } from "@/lib/parkingSpaceMerge";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { ThemeToggle } from "./components/ToggleTheme";
@@ -23,7 +23,7 @@ import { ThemeToggle } from "./components/ToggleTheme";
 export default function App() {
     const mapRef = useRef<MapHandleApi>(null);
     const [filter, setFilter] = useState<FilterState>(defaultFilter);
-    const [selected, setSelected] = useState<Parkplatz | null>(null);
+    const [selected, setSelected] = useState<ParkingSpace | null>(null);
     const [bbox, setBbox] = useState<Bbox | null>(null);
     const [mapCenter, setMapCenter] = useState<LatLng>(INITIAL_CENTER);
     const [zoom, setZoom] = useState<number>(15);
@@ -59,39 +59,39 @@ export default function App() {
     const osmIds = useMemo(() => (osmQ.data ?? []).map((p) => p.osmId), [osmQ.data]);
     const backendQ = useParkingSpacesBulk(osmIds);
 
-    const parkplaetze = useMemo(() => mergeParkplaetze(osmQ.data ?? [], backendQ.data), [osmQ.data, backendQ.data]);
+    const parkingSpaces = useMemo(() => mergeParkingSpaces(osmQ.data ?? [], backendQ.data), [osmQ.data, backendQ.data]);
 
     const referenz: LatLng = userPos ?? mapCenter;
 
     const filtered = useMemo(() => {
-        const term = filter.suche.trim().toLowerCase();
-        const list = parkplaetze.filter((p) => {
-            if (filter.typ === "wandern" && !p.isHiker) return false;
-            if (filter.typ === "standard" && p.isHiker) return false;
-            if (filter.minSterne > 0) {
-                if (!p.anzahlBewertungen || p.bewertung < filter.minSterne) return false;
+        const term = filter.search.trim().toLowerCase();
+        const list = parkingSpaces.filter((p) => {
+            if (filter.category === "hiking" && !p.isHiker) return false;
+            if (filter.category === "standard" && p.isHiker) return false;
+            if (filter.minStars > 0) {
+                if (!p.reviewCount || p.rating < filter.minStars) return false;
             }
             if (term && !`${p.name} ${p.region}`.toLowerCase().includes(term)) return false;
             if (!matchesAdvanced(p.tags, filter.advanced)) return false;
             if (filter.advanced.maxDistance > 0) {
-                if (distanzKm(referenz, p) > filter.advanced.maxDistance) return false;
+                if (distanceKm(referenz, p) > filter.advanced.maxDistance) return false;
             }
             return true;
         });
         list.sort((a, b) => {
-            if (filter.sortBy === "bewertung") return b.bewertung - a.bewertung;
+            if (filter.sortBy === "rating") return b.rating - a.rating;
             if (filter.sortBy === "name") return a.name.localeCompare(b.name);
-            return distanzKm(referenz, a) - distanzKm(referenz, b);
+            return distanceKm(referenz, a) - distanceKm(referenz, b);
         });
         return list;
-    }, [filter, parkplaetze, referenz]);
+    }, [filter, parkingSpaces, referenz]);
 
-    const handleMapSelect = useCallback((p: Parkplatz) => {
+    const handleMapSelect = useCallback((p: ParkingSpace) => {
         setSelected(p);
         setMobileFilterOpen(false);
     }, []);
 
-    const handleListSelect = useCallback((p: Parkplatz) => {
+    const handleListSelect = useCallback((p: ParkingSpace) => {
         setSelected(p);
         mapRef.current?.flyTo(p.lat, p.lng);
         setMobileFilterOpen(false);
@@ -116,7 +116,7 @@ export default function App() {
         <div className="relative w-screen h-screen overflow-hidden bg-background">
             <MapView
                 ref={mapRef}
-                parkplaetze={filtered}
+                parkingSpaces={filtered}
                 userPos={userPos}
                 selectedId={selected?.osmId ?? null}
                 onSelect={handleMapSelect}
@@ -222,8 +222,8 @@ export default function App() {
             {/* Desktop detail panel */}
             {selected && !isMobile && (
                 <aside className="hidden md:flex fixed top-4 right-4 bottom-4 z-[1000] w-[26rem] flex-col rounded-2xl border bg-background/95 backdrop-blur shadow-[var(--shadow-elevated)] overflow-hidden">
-                    <ParkplatzDetail
-                        parkplatz={selected}
+                    <ParkingSpaceDetail
+                        parkingSpace={selected}
                         userPos={userPos}
                         onClose={() => setSelected(null)}
                         canInteract={!!user}
@@ -240,8 +240,8 @@ export default function App() {
                         side="bottom"
                         className="p-0 max-h-[85vh] rounded-t-3xl">
                         {selected && (
-                            <ParkplatzDetail
-                                parkplatz={selected}
+                            <ParkingSpaceDetail
+                                parkingSpace={selected}
                                 userPos={userPos}
                                 onClose={() => setSelected(null)}
                                 canInteract={!!user}
@@ -281,7 +281,7 @@ export default function App() {
             <NearbyListDialog
                 open={nearbyOpen}
                 onOpenChange={setNearbyOpen}
-                parkplaetze={parkplaetze}
+                parkingSpaces={parkingSpaces}
                 referenz={referenz}
                 referenzLabel={userPos ? "deinem Standort" : "der Kartenmitte"}
                 selectedId={selected?.osmId ?? null}
@@ -328,59 +328,59 @@ const UNPAVED = new Set([
 ]);
 
 function matchesAdvanced(tags: Record<string, string>, a: AdvancedFilter): boolean {
-    if (a.fee !== "alle") {
-        const isFee = !["no", "unknown", "donation", undefined, null].includes(tags?.fee);
-        if (a.fee === "kostenlos" && isFee) return false;
-        if (a.fee === "kostenpflichtig" && !isFee) return false;
+    if (a.fee !== "all") {
+        const hasFee = !["no", "unknown", "donation", undefined, null].includes(tags?.fee);
+        if (a.fee === "free" && hasFee) return false;
+        if (a.fee === "paid" && !hasFee) return false;
     }
-    if (a.lit === "ja" && tags.lit !== "yes") return false;
-    if (a.covered === "ja" && tags.covered !== "yes") return false;
-    if (a.surface !== "alle") {
+    if (a.lit === "yes" && tags.lit !== "yes") return false;
+    if (a.covered === "yes" && tags.covered !== "yes") return false;
+    if (a.surface !== "all") {
         const s = tags.surface;
         if (!s) return false;
-        if (a.surface === "befestigt" && !PAVED.has(s)) return false;
-        if (a.surface === "unbefestigt" && !UNPAVED.has(s)) return false;
+        if (a.surface === "paved" && !PAVED.has(s)) return false;
+        if (a.surface === "unpaved" && !UNPAVED.has(s)) return false;
     }
-    if (a.access !== "alle") {
+    if (a.access !== "all") {
         const ac = tags.access ?? "";
-        if (a.access === "oeffentlich" && !(ac === "" || ac === "yes" || ac === "permissive" || ac === "public"))
+        if (a.access === "public" && !(ac === "" || ac === "yes" || ac === "permissive" || ac === "public"))
             return false;
-        if (a.access === "kunden" && ac !== "customers") return false;
-        if (a.access === "privat" && !(ac === "private" || ac === "no")) return false;
+        if (a.access === "customers" && ac !== "customers") return false;
+        if (a.access === "private" && !(ac === "private" || ac === "no")) return false;
     }
-    if (a.disabled === "ja") {
+    if (a.disabled === "yes") {
         const cd = tags["capacity:disabled"];
         if (!cd || cd === "no" || cd === "0") return false;
     }
-    if (a.parkingType !== "alle") {
+    if (a.parkingType !== "all") {
         const pt = tags.parking ?? "";
-        if (a.parkingType === "tiefgarage" && pt !== "underground") return false;
-        if (a.parkingType === "parkhaus" && !(pt === "multi-storey" || pt === "multi_storey" || pt === "rooftop"))
+        if (a.parkingType === "underground" && pt !== "underground") return false;
+        if (a.parkingType === "garage" && !(pt === "multi-storey" || pt === "multi_storey" || pt === "rooftop"))
             return false;
         if (
-            a.parkingType === "oberirdisch" &&
+            a.parkingType === "surface" &&
             !(pt === "" || pt === "surface" || pt === "street_side" || pt === "lane" || pt === "layby")
         )
             return false;
     }
-    if (a.minKapazitaet > 0) {
+    if (a.minCapacity > 0) {
         const cap = Number(tags.capacity);
-        if (!Number.isFinite(cap) || cap < a.minKapazitaet) return false;
+        if (!Number.isFinite(cap) || cap < a.minCapacity) return false;
     }
-    if (a.charging === "ja") {
+    if (a.charging === "yes") {
         const cc = tags["capacity:charging"];
         const ccNum = Number(cc);
         if (!(tags.charging === "yes" || tags.amenity === "charging_station" || (Number.isFinite(ccNum) && ccNum > 0)))
             return false;
     }
-    if (a.toilets === "ja" && !(tags.toilets === "yes" || tags["toilets:access"])) return false;
-    if (a.rvFriendly === "ja" && !(tags.caravans === "yes" || tags.motorhome === "yes" || tags["caravan"] === "yes"))
+    if (a.toilets === "yes" && !(tags.toilets === "yes" || tags["toilets:access"])) return false;
+    if (a.rvFriendly === "yes" && !(tags.caravans === "yes" || tags.motorhome === "yes" || tags["caravan"] === "yes"))
         return false;
-    if (a.truckFriendly === "ja" && !(tags.hgv === "yes" || tags.truck === "yes")) return false;
-    if (a.security === "kamera" && !(tags.surveillance === "camera" || tags["surveillance:type"] === "camera"))
+    if (a.truckFriendly === "yes" && !(tags.hgv === "yes" || tags.truck === "yes")) return false;
+    if (a.security === "camera" && !(tags.surveillance === "camera" || tags["surveillance:type"] === "camera"))
         return false;
-    if (a.security === "bewacht" && tags.supervised !== "yes") return false;
-    if (a.maxStay !== "alle") {
+    if (a.security === "guarded" && tags.supervised !== "yes") return false;
+    if (a.maxStay !== "all") {
         const ms = tags.maxstay;
         if (!ms) return false;
         const hours = parseMaxStayHours(ms);
@@ -388,7 +388,7 @@ function matchesAdvanced(tags: Record<string, string>, a: AdvancedFilter): boole
         if (!Number.isFinite(hours) || hours < need) return false;
     }
     if (
-        a.evOnly === "ja" &&
+        a.evOnly === "yes" &&
         !(
             tags["access:electric_vehicle"] === "only" ||
             tags["motor_vehicle:electric"] === "only" ||
@@ -397,7 +397,7 @@ function matchesAdvanced(tags: Record<string, string>, a: AdvancedFilter): boole
     )
         return false;
     if (
-        a.parkAndRide === "ja" &&
+        a.parkAndRide === "yes" &&
         !(tags["park_ride"] === "yes" || tags.park_ride === "bus" || tags.park_ride === "train")
     )
         return false;
