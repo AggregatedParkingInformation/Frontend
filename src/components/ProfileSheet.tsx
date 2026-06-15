@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Award, LogOut, Shield, User as UserIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ export function ProfileSheet({ open, onOpenChange, initialAuthOpen, onAuthOpenCh
     const user = useAuthStore((s) => s.user);
     const clearAuth = useAuthStore((s) => s.clear);
     const setUser = useAuthStore((s) => s.setUser);
+    const refreshAuth = useAuthStore((s) => s.refresh);
     const [authOpenInner, setAuthOpenInner] = useState(false);
     const authOpen = initialAuthOpen ?? authOpenInner;
     const setAuthOpen = (b: boolean) => {
@@ -34,6 +35,11 @@ export function ProfileSheet({ open, onOpenChange, initialAuthOpen, onAuthOpenCh
     };
 
     const [adminOpen, setAdminOpen] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        void refreshAuth();
+    }, [open, refreshAuth]);
 
     return (
         <>
