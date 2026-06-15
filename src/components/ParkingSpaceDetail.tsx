@@ -41,7 +41,7 @@ import {
     useDeleteReview,
     useDeleteComment,
 } from "@/lib/hooks";
-import { userIsAdmin } from "@/lib/roles";
+import { userIsStaff, userIsAdmin } from "@/lib/roles";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { toast } from "sonner";
 
@@ -72,6 +72,7 @@ export function ParkingSpaceDetail({ parkingSpace, userPos, onClose, canInteract
     const updateReview = useUpdateReview();
     const updateComment = useUpdateComment();
     const currentUser = useAuthStore((s) => s.user);
+    const isStaff = userIsStaff(currentUser);
     const isAdmin = userIsAdmin(currentUser);
     const upvoteComment = useUpvoteComment();
     const deleteUpvoteComment = useDeleteUpvoteComment();
@@ -96,7 +97,7 @@ export function ParkingSpaceDetail({ parkingSpace, userPos, onClose, canInteract
 
     const confirmDelete = async () => {
         if (!deleteTarget) return;
-        if (isAdmin) {
+        if (isStaff || isAdmin) {
             if (deleteTarget.type === "review") await adminDeleteReview.mutateAsync(deleteTarget.id);
             else await adminDeleteComment.mutateAsync(deleteTarget.id);
         } else {
@@ -194,7 +195,9 @@ export function ParkingSpaceDetail({ parkingSpace, userPos, onClose, canInteract
                         ) : (
                             <Badge variant="secondary">Parkplatz</Badge>
                         )}
-                        {parkingSpace.region && <span className="text-xs text-muted-foreground">{parkingSpace.region}</span>}
+                        {parkingSpace.region && (
+                            <span className="text-xs text-muted-foreground">{parkingSpace.region}</span>
+                        )}
                     </div>
                     <h2 className="font-heading text-xl font-semibold leading-tight">{parkingSpace.name}</h2>
                     <div className="flex items-center gap-3 mt-2 text-sm">
@@ -307,7 +310,7 @@ export function ParkingSpaceDetail({ parkingSpace, userPos, onClose, canInteract
                                         <span className="text-sm font-semibold text-muted-foreground">
                                             {r.user?.username}
                                         </span>
-                                        {(isAdmin || r.user?.id === currentUser?.id) && (
+                                        {(isStaff || isAdmin || r.user?.id === currentUser?.id) && (
                                             <button
                                                 className="text-destructive hover:text-destructive/80"
                                                 onClick={() => handleDeleteClick("review", r.id)}
@@ -338,7 +341,7 @@ export function ParkingSpaceDetail({ parkingSpace, userPos, onClose, canInteract
                                             className="text-muted-foreground"
                                         />
                                         <span className="text-sm font-semibold">{k.user?.username}</span>
-                                        {(isAdmin || k.user?.id === currentUser?.id) && (
+                                        {(isStaff || isAdmin || k.user?.id === currentUser?.id) && (
                                             <button
                                                 className="text-destructive hover:text-destructive/80"
                                                 onClick={() => handleDeleteClick("comment", k.id)}
