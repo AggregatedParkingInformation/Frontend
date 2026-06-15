@@ -254,7 +254,7 @@ export default function App() {
             )}
 
             {/* Floating action buttons */}
-            <div className="fixed bottom-5 right-5 z-[1000] flex flex-col gap-2">
+            <div className="fixed bottom-5 right-5 flex flex-col gap-2">
                 <Button
                     size="icon-lg"
                     variant="secondary"
