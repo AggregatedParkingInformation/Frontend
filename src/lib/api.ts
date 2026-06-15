@@ -8,7 +8,8 @@ import type {
     UserPostRequestDto,
 } from "./types";
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const BASE = (globalThis as any).__ENV__?.VITE_API_BASE_URL ?? import.meta.env.VITE_API_BASE_URL ?? "";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${BASE}${path}`, {
