@@ -53,7 +53,7 @@ describe("usePlaceSuggestions", () => {
         vi.clearAllMocks();
     });
 
-    it("führt keine Suche bei weniger als 2 Zeichen aus", () => {
+    it("no search with less than 2 characters", () => {
         renderHook(
             () => usePlaceSuggestions("a"),
             {
@@ -64,7 +64,7 @@ describe("usePlaceSuggestions", () => {
         expect(searchPlaces).not.toHaveBeenCalled();
     });
 
-    it("führt die Suche ab 2 Zeichen aus", async () => {
+    it("performs search with 2 or more characters", async () => {
         vi.mocked(searchPlaces).mockResolvedValue([]);
 
         renderHook(
@@ -79,7 +79,7 @@ describe("usePlaceSuggestions", () => {
         });
     });
 
-    it("trimmt Leerzeichen vor der Suche", async () => {
+    it("trims whitespace before searching", async () => {
         vi.mocked(searchPlaces).mockResolvedValue([]);
 
         renderHook(
@@ -103,7 +103,7 @@ describe("useCreateComment", () => {
         vi.clearAllMocks();
     });
 
-    it("ruft api.createComment auf", async () => {
+    it("calls api.createComment", async () => {
         vi.mocked(api.createComment).mockResolvedValue(undefined);
 
         const { result } = renderHook(
